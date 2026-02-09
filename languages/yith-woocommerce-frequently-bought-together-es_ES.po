@@ -1,0 +1,355 @@
+# Translation of YITHEMES Frequently Bought Together in Spanish (Spain)
+# This file is distributed under the same license as the YITHEMES Frequently Bought Together package.
+msgid ""
+msgstr ""
+"Project-Id-Version: YITHEMES Frequently Bought Together\n"
+"Report-Msgid-Bugs-To: YITH <plugins@yithemes.com>\n"
+"POT-Creation-Date: 2024-12-12 15:55:46+00:00\n"
+"PO-Revision-Date: 2024-09-12 08:40:51+0000\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: GlotPress/3.0.0-alpha.2\n"
+
+#: includes/class.yith-wfbt-admin.php:151
+msgid "Settings"
+msgstr "Ajustes"
+
+#: includes/class.yith-wfbt-admin.php:198
+msgid "Suggest related products, upsells, or cross-sells automatically"
+msgstr ""
+"Sugiere automáticamente productos relacionados, venta dirigida o venta "
+"cruzada "
+
+#: includes/class.yith-wfbt-admin.php:199
+msgid ""
+"In the free version, you can manually select which products to suggest to "
+"order together. In the premium version, you can suggest related, upsell, or "
+"cross-sell products automatically with just one click to increase the "
+"average order value."
+msgstr ""
+"En la versión gratuita puedes seleccionar manualmente qué productos sugerir "
+"para la compra combinada. Con la versión premium puedes elegir sugerir "
+"automáticamente productos relacionados, venta dirigida o cruzada para "
+"aumentar el valor medio del pedido con un solo clic.  "
+
+#: includes/class.yith-wfbt-admin.php:202
+msgid ""
+"Customize the text, images, and buttons of the suggested products section"
+msgstr ""
+"Personaliza el texto, las imágenes y los botones de la sección de productos "
+"sugeridos"
+
+#: includes/class.yith-wfbt-admin.php:203
+msgid ""
+"Choose how many products to suggest to customers, set the size of the "
+"product images, customize the title of the section and the text of the “Add "
+"to cart” button, and more!"
+msgstr ""
+"Elige cuántos productos sugerir para la compra combinada, define el tamaño "
+"de las imágenes de los productos, personaliza el título de la sección y el "
+"texto del botón de añadir al carrito y mucho más."
+
+#: includes/class.yith-wfbt-admin.php:206
+msgid "Choose where to show the suggested products box"
+msgstr "Elige dónde mostrar el cuadro de productos sugeridos"
+
+#: includes/class.yith-wfbt-admin.php:207
+msgid ""
+"The premium version is so versatile that you can choose to show the products "
+"under the “Add to cart” button or the product tabs, or at the bottom of the "
+"page. And you can use the shortcode for even more flexibility."
+msgstr ""
+"La versatilidad de la versión premium te da la opción de mostrar los "
+"productos bajo el botón de añadir al carrito, bajo las pestañas de producto "
+"o en la parte inferior de la página. Alternativamente, puedes utilizar el "
+"shortcode para una mayor libertad de elección."
+
+#: includes/class.yith-wfbt-admin.php:210
+msgid "Offer discounts to encourage customers to buy"
+msgstr "Ofrece descuentos para animar a tus clientes a comprar"
+
+#: includes/class.yith-wfbt-admin.php:211
+msgid ""
+"Here’s the most popular option in the premium version: once you have "
+"selected the products you want to up-sell, you can offer your customers a "
+"fixed or percentage discount to encourage them to buy the suggested products "
+"in a single order."
+msgstr ""
+"La opción más popular para los usuarios premium: una vez que hayas elegido "
+"los productos para promover como venta dirigida, puedes ofrecer un descuento "
+"(fijo o porcentual) a tus clientes para animarles a comprar los productos "
+"sugeridos en un solo pedido."
+
+#: includes/class.yith-wfbt-admin.php:314
+msgid "Select products"
+msgstr "Seleccionar productos"
+
+#: includes/class.yith-wfbt-admin.php:333
+msgid "Search for a product&hellip;"
+msgstr "Buscar un producto&hellip;"
+
+#: includes/class.yith-wfbt-admin.php:345
+msgid "Select products for \"Frequently bought together\" group"
+msgstr ""
+"Seleccionar productos para el grupo \"Comprados juntos con frecuencia\""
+
+#: init.php:54
+msgid ""
+"YITH WooCommerce Frequently Bought Together is enabled but not effective. It "
+"requires WooCommerce in order to work."
+msgstr ""
+"YITH WooCommerce Frequently Bought Together Premium está activo pero no es "
+"efectivo. Requiere WooCommerce para funcionar."
+
+#: init.php:69
+msgid ""
+"You can't activate the free version of YITH WooCommerce Frequently Bought "
+"Together while you are using the premium one."
+msgstr ""
+"No puedes activar la versión gratuita de YITH WooCommerce Frequently Bought "
+"Together mientras usas la premium."
+
+#: plugin-options/general-options.php:14
+msgid "General Options"
+msgstr "Opciones Generales"
+
+#: plugin-options/general-options.php:22
+msgid "Box title"
+msgstr "Título del recuadro"
+
+#: plugin-options/general-options.php:23
+msgid "Title shown on \"Frequently Bought Together\" box."
+msgstr "Título mostrado en el recuadro de \"Comprados juntos con frecuencia\""
+
+#: plugin-options/general-options.php:26 templates/yith-wfbt-form.php:118
+msgid "Frequently Bought Together"
+msgstr "Comprados juntos con frecuencia"
+
+#: plugin-options/general-options.php:31
+msgid "Total label"
+msgstr "Texto precio total"
+
+#: plugin-options/general-options.php:32
+msgid "This is the label shown for total price label."
+msgstr "Texto para el precio total"
+
+#: plugin-options/general-options.php:35 templates/yith-wfbt-form.php:117
+msgid "Price for all"
+msgstr "Precio de todos"
+
+#: plugin-options/general-options.php:40
+msgid "Button label"
+msgstr "Texto del botón"
+
+#: plugin-options/general-options.php:41
+msgid "This is the label shown for \"Add to cart\" button."
+msgstr "Texto del botón \"Añadir al carrito\""
+
+#: plugin-options/general-options.php:44 templates/yith-wfbt-form.php:116
+msgid "Add all to Cart"
+msgstr "Añadir todo al carrito"
+
+#: plugin-options/general-options.php:55
+msgid "BACKGROUND"
+msgstr "FONDO"
+
+#: plugin-options/general-options.php:60
+msgid "BACKGROUND HOVER"
+msgstr "FONDO AL PASAR EL CURSOR"
+
+#: plugin-options/general-options.php:66
+msgid "TEXT"
+msgstr "TEXTO"
+
+#: plugin-options/general-options.php:71
+msgid "TEXT HOVER"
+msgstr "TEXTO AL PASAR EL CURSOR"
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:288 templates/admin/premium.php:444
+msgid ""
+"Upgrade to %1$spremium version%2$s of %1$sYITH WooCommerce Frequently Bought "
+"Together%2$s to benefit from all features!"
+msgstr ""
+
+#: templates/admin/premium.php:293 templates/admin/premium.php:449
+msgid "UPGRADE"
+msgstr ""
+
+#: templates/admin/premium.php:294 templates/admin/premium.php:450
+msgid "to the premium version"
+msgstr ""
+
+#: templates/admin/premium.php:300
+msgid "Premium Features"
+msgstr ""
+
+#: templates/admin/premium.php:309
+msgid "Number of products associated"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:313
+msgid ""
+"You might decide to suggest your customers to buy products in combination, "
+"but you do not want to weigh your shop page down. Do not be afraid, you can "
+"do that with %1$sYITH WooCommerce Frequently Bought Together%2$s."
+"%3$sAssociate as many products as you want to a product of your shop, but "
+"then decide how many of them showing. They will be selected randomly and "
+"suggested to your customers."
+msgstr ""
+
+#: templates/admin/premium.php:323
+msgid "Custom labels"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:327
+msgid ""
+"you can customise more and more labels so that you are able to enter the "
+"text that you want and that is %1$sinteresting%2$s and %1$scaptivating%2$s "
+"for your customers.%3$sFixity is never synonym of a good product and for "
+"this reason the plugin aims at being more and more flexible and suitable for "
+"your needs."
+msgstr ""
+
+#: templates/admin/premium.php:343
+msgid "Position"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:347
+msgid ""
+"Users sight is always very quick and it is often caught by a specific detail "
+"or by a combination of details that take their sight to a specific spot in "
+"the page. Choose %1$sstrategic spots%2$s for showing your combined products "
+"in the page and you'll find easily the best solution for you."
+msgstr ""
+
+#: templates/admin/premium.php:357
+msgid "Image size"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:361
+msgid ""
+"All items added by the plugin into product detail page will be shown with "
+"their image too.%3$sDo not be afraid of the quality, just care about "
+"choosing its final %1$ssize%2$s and crop it if you think it's better to do "
+"so."
+msgstr ""
+
+#: templates/admin/premium.php:377
+msgid "List of associated products"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:381
+msgid ""
+"Keep track of the products you have set up with the plugin, do not get crazy "
+"to find them in the list of all products created.%3$sThe premium version of "
+"the plugin adds a %1$stable%2$s where all configured products have been "
+"added and for each of them a comprehensive list with associated products."
+msgstr ""
+
+#: templates/admin/premium.php:391
+msgid "Integration with Wishlist"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:395
+msgid ""
+"To make you fully enjoy all plugin functionalities we have also integrated "
+"it with %1$sYITH WooCommerce Wishlist%2$s.%3$sEnable both plugins, set their "
+"options appropriately and in each user will be able to see in his/her own "
+"Wishlist page a %1$sslider%2$s with all products associated at least at one "
+"of the items in wishlist."
+msgstr ""
+
+#: templates/admin/premium.php:412
+msgid "Products to add to cart"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:416
+msgid ""
+"Among all suggested products, it can occur some are not in users' plans and "
+"they wouldn't show interest in adding them all to cart. The premium version "
+"of the plugin goes beyond this problem by giving users the possibility to "
+"%1$sadd to cart only the products they prefer%2$s."
+msgstr ""
+
+#: templates/admin/premium.php:426
+msgid "SET DISCOUNT FOR FREQUENTLY BOUGHT TOGETHER GROUP"
+msgstr ""
+
+#. translators: placeholders are used for add HTML tags.
+#: templates/admin/premium.php:430
+msgid ""
+"You can either choose to apply a percentage discount or a fixed amount. The "
+"discount will be shown highlighted in the frequently bought together box. "
+"The discount will only be applied if the required number of products are "
+"selected."
+msgstr ""
+
+#: templates/yith-wfbt-form.php:63
+msgid "This Product"
+msgstr "Este producto"
+
+#. Description of the plugin/theme
+msgid ""
+"The <code><strong>YITH WooCommerce Frequently Bought Together</strong></"
+"code> allows increasing the average spent of your store by showing a box "
+"with the products purchased together more frequently. In this way, users are "
+"encouraged to add more products to their cart just like on Amazon. <a href="
+"\"https://yithemes.com/\" target=\"_blank\">Get more plugins for your e-"
+"commerce shop on <strong>YITH</strong></a>."
+msgstr ""
+"<code><strong>YITH WooCommerce Frequently Bought Together</strong></code> "
+"permite incrementar el promedio gastado en tu tienda mostrando una caja con "
+"los productos comprados juntos más frecuentemente. De esta manera, los "
+"usuarios son animados a añadir más productos a su carrito justo como en "
+"Amazon. <a href=\"https://yithemes.com/\" target=\"_blank\">Obtén más "
+"plugins para tu comercio electrónico en <strong>YITH</strong></a>."
+
+#: includes/class.yith-wfbt-admin.php:172
+msgctxt "Settings tab name"
+msgid "Settings"
+msgstr "Ajustes"
+
+#: includes/class.yith-wfbt-admin.php:173
+msgctxt "Settings tab description"
+msgid "Set the general behaviour of the plugin."
+msgstr "Establece el comportamiento general del plugin."
+
+#: includes/class.yith-wfbt-admin.php:284
+msgctxt "tab in product data box"
+msgid "Frequently Bought Together"
+msgstr "Frequently Bought Together"
+
+#: includes/class.yith-wfbt.php:186
+msgctxt "[gutenberg]: block name"
+msgid "Frequently Bought Form"
+msgstr "Comprados juntos con frecuencia"
+
+#: includes/class.yith-wfbt.php:187
+msgctxt "[gutenberg]: block description"
+msgid ""
+"With this block you can print a product \"frequently bought together\" form."
+msgstr ""
+"Seleccionar productos para el grupo \"Comprados juntos con frecuencia\""
+
+#: includes/class.yith-wfbt.php:193
+msgctxt "[gutenberg]: attributes description"
+msgid "Add the product id (leave blank to get global product value)"
+msgstr ""
+"Añade el ID de producto (déjalo vacío para obtener el valor global de "
+"producto)"
+
+#: plugin-options/general-options.php:48
+msgctxt "[admin]Plugin option label"
+msgid "Button colors"
+msgstr "Color del botón"
