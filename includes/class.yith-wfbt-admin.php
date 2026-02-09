@@ -33,7 +33,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 	class YITH_WFBT2_Admin {
 
 		/**
-		 * Single instance of the class
+		 * Single instance of the class.
 		 *
 		 * @since 1.0.0
 		 * @var \YITH_WFBT2_Admin
@@ -41,26 +41,23 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 		protected static $instance;
 
 		/**
-		 * Plugin options
+		 * Plugin options.
 		 *
 		 * @since  1.0.0
 		 * @var array
-		 * @access public
 		 */
 		public $options = array();
 
 		/**
-		 * Plugin version
+		 * Plugin version.
 		 *
 		 * @since 1.0.0
 		 * @var string
 		 */
 		public $version = YITH_WFBT2_VERSION;
 
- 
-
 		/**
-		 * Returns single instance of the class
+		 * Returns single instance of the class.
 		 *
 		 * @since 1.0.0
 		 * @return \YITH_WFBT2_Admin
@@ -74,21 +71,17 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 		}
 
 		/**
-		 * Constructor
+		 * Constructor.
 		 *
-		 * @access public
 		 * @since  1.0.0
 		 */
 		public function __construct() {
-
-			// add section in product edit page.
 			add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_bought_together_tab' ), 10, 1 );
 			add_action( 'woocommerce_product_data_panels', array( $this, 'add_bought_together_panel' ) );
 
-			// search product.
 			add_action( 'wp_ajax_yith_wfbt2_ajax_search_product', array( $this, 'yith_wfbt2_ajax_search_product' ) );
 			add_action( 'wp_ajax_nopriv_yith_wfbt2_ajax_search_product', array( $this, 'yith_wfbt2_ajax_search_product' ) );
-			// save tabs options.
+
 			$product_types = apply_filters(
 				'yith_wfbt2_product_types_meta_save',
 				array(
@@ -104,20 +97,13 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 			}
 		}
 
-
-
-
-
 		/**
-		 * Add bought together tab in edit product page
+		 * Add tab in product data box.
 		 *
-		 * @since  1.0.0
-		 *
-		 * @param mixed $tabs Product edit admin tabs.
-		 * @return mixed
+		 * @param array $tabs Product tabs.
+		 * @return array
 		 */
 		public function add_bought_together_tab( $tabs ) {
-
 			$tabs['yith-wfbt2'] = array(
 				'label'  => _x( 'Cross Selling Manual', 'tab in product data box', 'yith-woocommerce-frequently-bought-together' ),
 				'target' => 'yith_wfbt2_data_option',
@@ -128,27 +114,30 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 		}
 
 		/**
-		 * Add bought together panel in edit product page
-		 *
-		 * @since  1.0.0
+		 * Render product panel.
 		 */
-				public function add_bought_together_panel() {
-
+		public function add_bought_together_panel() {
 			global $post, $product_object;
+
+			if ( function_exists( 'wp_enqueue_media' ) ) {
+				wp_enqueue_media();
+			}
 
 			$product_id = $post->ID;
 			if ( is_null( $product_object ) ) {
 				$product_object = wc_get_product( $product_id );
 			}
-			$to_exclude = array( $product_id );
-			$meta_key = defined( 'YITH_WFBT2_META' ) ? YITH_WFBT2_META : '_yith_wfbt2_ids';
-			$mode_key = defined( 'YITH_WFBT2_MODE_META' ) ? YITH_WFBT2_MODE_META : '_yith_wfbt2_mode';
+
+			$to_exclude     = array( $product_id );
+			$meta_key       = defined( 'YITH_WFBT2_META' ) ? YITH_WFBT2_META : '_yith_wfbt2_ids';
+			$mode_key       = defined( 'YITH_WFBT2_MODE_META' ) ? YITH_WFBT2_MODE_META : '_yith_wfbt2_mode';
 			$categories_key = defined( 'YITH_WFBT2_CATEGORIES_META' ) ? YITH_WFBT2_CATEGORIES_META : '_yith_wfbt2_categories';
-			$mode = yit_get_prop( $product_object, $mode_key, true );
-			$mode = $mode ? $mode : 'simple';
+			$mode           = yit_get_prop( $product_object, $mode_key, true );
+			$mode           = $mode ? $mode : 'simple';
 			if ( 'set' === $mode ) {
 				$mode = 'simple';
 			}
+
 			$categories = yit_get_prop( $product_object, $categories_key, true );
 			if ( ! is_array( $categories ) ) {
 				$categories = array();
@@ -158,6 +147,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					array(
 						'name'     => '',
 						'products' => array(),
+						'qty'      => array(),
 					),
 				);
 			}
@@ -166,23 +156,24 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 			?>
 			<div class="yith-wfbt2-category-box" data-index="__INDEX__">
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___name"><?php esc_html_e( 'Nombre de Categoría', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label for="yith_wfbt2_categories___INDEX___name"><?php esc_html_e( 'Set name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<input type="text" id="yith_wfbt2_categories___INDEX___name" name="yith_wfbt2_categories[__INDEX__][name]" value="" style="width: 50%;"/>
 				</p>
+
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___match"><?php esc_html_e( 'Texto a Buscar', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-					<input type="text" id="yith_wfbt2_categories___INDEX___match" name="yith_wfbt2_categories[__INDEX__][match]" value="" style="width: 50%;" placeholder="<?php esc_attr_e( 'e.g. Doble', 'yith-woocommerce-frequently-bought-together' ); ?>"/>
+					<label><?php esc_html_e( 'Set image', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<input type="hidden" class="yith-wfbt2-set-image-id" id="yith_wfbt2_categories___INDEX___image_id" name="yith_wfbt2_categories[__INDEX__][image_id]" value=""/>
+					<span class="yith-wfbt2-set-image-preview"></span>
+					<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Select image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-image" style="display:none;"><?php esc_html_e( 'Remove image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
+
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___message"><?php esc_html_e( 'Texto a Mostrar', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-					<input type="text" id="yith_wfbt2_categories___INDEX___message" name="yith_wfbt2_categories[__INDEX__][message]" value="" style="width: 50%;" placeholder="<?php esc_attr_e( 'Message to show if matched', 'yith-woocommerce-frequently-bought-together' ); ?>"/>
-				</p>
-				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___products"><?php esc_html_e( 'Productos', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label for="yith_wfbt2_categories___INDEX___products"><?php esc_html_e( 'Set products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<?php
 					yit_add_select2_fields(
 						array(
-							'class'             => 'wc-product-search',
+							'class'             => 'wc-product-search yith-wfbt2-set-products',
 							'style'             => 'width: 50%;',
 							'id'                => 'yith_wfbt2_categories___INDEX___products',
 							'name'              => 'yith_wfbt2_categories[__INDEX__][products]',
@@ -198,13 +189,19 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					);
 					?>
 				</p>
+
+				<input type="hidden" class="yith-wfbt2-qty-map-data" value="{}"/>
+				<div class="yith-wfbt2-set-qty-wrapper">
+					<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<div class="yith-wfbt2-set-qty-list"></div>
+				</div>
+
 				<p>
-					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 			</div>
 			<?php
 			$category_template = ob_get_clean();
-
 			?>
 
 			<div id="yith_wfbt2_data_option" class="panel woocommerce_options_panel">
@@ -222,7 +219,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							<span class="yith-wfbt2-mode-option">
 								<label>
 									<input type="radio" name="yith_wfbt2_mode" value="categorical" <?php checked( $mode, 'categorical' ); ?> />
-									<?php esc_html_e( 'Categorico', 'yith-woocommerce-frequently-bought-together' ); ?>
+									<?php esc_html_e( 'Categorical', 'yith-woocommerce-frequently-bought-together' ); ?>
 								</label>
 							</span>
 						</span>
@@ -231,17 +228,17 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 
 				<div class="yith-wfbt2-mode-set">
 					<div class="options_group">
-						<p class="form-field"><label
-								for="yith_wfbt2_ids"><?php esc_html_e( 'Select products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+						<p class="form-field">
+							<label for="yith_wfbt2_ids"><?php esc_html_e( 'Select products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 							<?php
 							$product_ids = yit_get_prop( $product_object, $meta_key, true );
 							$product_ids = array_filter( array_map( 'absint', (array) $product_ids ) );
 							$json_ids    = array();
 
-							foreach ( $product_ids as $product_id ) {
-								$product = wc_get_product( $product_id );
-								if ( is_object( $product ) ) {
-									$json_ids[ $product_id ] = wp_kses_post( html_entity_decode( $product->get_formatted_name() ) );
+							foreach ( $product_ids as $related_product_id ) {
+								$related_product = wc_get_product( $related_product_id );
+								if ( is_object( $related_product ) ) {
+									$json_ids[ $related_product_id ] = wp_kses_post( html_entity_decode( $related_product->get_formatted_name() ) );
 								}
 							}
 
@@ -262,10 +259,6 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								)
 							);
 							?>
-							<img class="help_tip"
-								data-tip='<?php echo esc_attr__( 'Select products for "Frequently bought together" group', 'yith-woocommerce-frequently-bought-together' ) . ' 2'; ?>'
-								src="<?php echo esc_url( WC()->plugin_url() ); ?>/assets/images/help.png" height="16"
-								width="16"/>
 						</p>
 					</div>
 				</div>
@@ -276,17 +269,29 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							<?php
 							$category_index = 0;
 							foreach ( $categories as $category ) {
-								$category_name     = isset( $category['name'] ) ? $category['name'] : '';
-								$category_products = isset( $category['products'] ) ? $category['products'] : array();
-								$category_match    = isset( $category['match'] ) ? $category['match'] : '';
-								$category_message  = isset( $category['message'] ) ? $category['message'] : '';
+								$category_name    = isset( $category['name'] ) ? $category['name'] : '';
+								$category_image   = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
+								$category_qty_map = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
 
+								$category_products = isset( $category['products'] ) ? $category['products'] : array();
 								if ( is_string( $category_products ) ) {
 									$category_products = explode( ',', $category_products );
 								}
 								$category_products = array_filter( array_map( 'absint', (array) $category_products ) );
 
-								$json_ids = array();
+								if ( empty( $category_products ) && isset( $category['items'] ) && is_array( $category['items'] ) ) {
+									foreach ( $category['items'] as $item_data ) {
+										$item_product_id = isset( $item_data['product_id'] ) ? absint( $item_data['product_id'] ) : 0;
+										$item_qty        = isset( $item_data['qty'] ) ? max( 1, absint( $item_data['qty'] ) ) : 1;
+										if ( $item_product_id ) {
+											$category_products[]                  = $item_product_id;
+											$category_qty_map[ $item_product_id ] = $item_qty;
+										}
+									}
+								}
+
+								$category_products = array_values( array_unique( $category_products ) );
+								$json_ids          = array();
 								foreach ( $category_products as $category_product_id ) {
 									$category_product = wc_get_product( $category_product_id );
 									if ( is_object( $category_product ) ) {
@@ -296,23 +301,24 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								?>
 								<div class="yith-wfbt2-category-box" data-index="<?php echo esc_attr( $category_index ); ?>">
 									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name"><?php esc_html_e( 'Nombre de Categoría', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name"><?php esc_html_e( 'Set name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 										<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][name]" value="<?php echo esc_attr( $category_name ); ?>" style="width: 50%;"/>
 									</p>
+
 									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_match"><?php esc_html_e( 'Texto a Buscar', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-										<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_match" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][match]" value="<?php echo esc_attr( $category_match ); ?>" style="width: 50%;"/>
+										<label><?php esc_html_e( 'Set image', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<input type="hidden" class="yith-wfbt2-set-image-id" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_image_id" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][image_id]" value="<?php echo esc_attr( $category_image ); ?>"/>
+										<span class="yith-wfbt2-set-image-preview"><?php if ( $category_image ) { echo wp_kses_post( wp_get_attachment_image( $category_image, 'thumbnail' ) ); } ?></span>
+										<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Select image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-remove-image" <?php echo $category_image ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
+
 									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_message"><?php esc_html_e( 'Texto a Mostrar', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-										<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_message" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][message]" value="<?php echo esc_attr( $category_message ); ?>" style="width: 50%;"/>
-									</p>
-									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_products"><?php esc_html_e( 'Productos', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_products"><?php esc_html_e( 'Set products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 										<?php
 										yit_add_select2_fields(
 											array(
-												'class'             => 'wc-product-search',
+												'class'             => 'wc-product-search yith-wfbt2-set-products',
 												'style'             => 'width: 50%;',
 												'id'                => 'yith_wfbt2_categories_' . $category_index . '_products',
 												'name'              => 'yith_wfbt2_categories[' . $category_index . '][products]',
@@ -328,8 +334,15 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 										);
 										?>
 									</p>
+
+									<input type="hidden" class="yith-wfbt2-qty-map-data" value="<?php echo esc_attr( wp_json_encode( $category_qty_map ) ); ?>"/>
+									<div class="yith-wfbt2-set-qty-wrapper">
+										<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<div class="yith-wfbt2-set-qty-list"></div>
+									</div>
+
 									<p>
-										<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
 								</div>
 								<?php
@@ -338,12 +351,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							?>
 						</div>
 						<p>
-							<a href="#" class="button yith-wfbt2-add-category">+ <?php esc_html_e( 'Add category', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+							<a href="#" class="button yith-wfbt2-add-category">+ <?php esc_html_e( 'Add Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 						</p>
 						<input type="hidden" id="yith_wfbt2_categories_next_index" value="<?php echo esc_attr( $category_index ); ?>"/>
 					</div>
 				</div>
-
 				<script type="text/template" id="yith-wfbt2-category-template">
 					<?php echo $category_template; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</script>
@@ -360,11 +372,6 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								var data = $(this).data("data");
 								if (data && data.id) {
 									ids.push(String(data.id));
-									return;
-								}
-								var id = $(this).data("id");
-								if (id) {
-									ids.push(String(id));
 								}
 							});
 							if (!ids.length) {
@@ -378,107 +385,191 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							});
 						}
 
+						function getStoredQtyMap($box) {
+							var raw = $box.find(".yith-wfbt2-qty-map-data").val() || "{}";
+							try {
+								var parsed = JSON.parse(raw);
+								return parsed && typeof parsed === "object" ? parsed : {};
+							} catch (error) {
+								return {};
+							}
+						}
+
+						function collectQtyMap($box) {
+							var map = getStoredQtyMap($box);
+							$box.find(".yith-wfbt2-set-qty-input").each(function() {
+								var productId = String($(this).data("productId"));
+								var qty = parseInt($(this).val(), 10);
+								map[productId] = qty && qty > 0 ? qty : 1;
+							});
+							return map;
+						}
+
+						function syncSetQtyRows($box) {
+							var $select = $box.find(".yith-wfbt2-set-products");
+							if (!$select.length) {
+								return;
+							}
+							var map = collectQtyMap($box);
+							var index = $box.data("index");
+							var selectedIds = [];
+							$select.find("option:selected").each(function() {
+								selectedIds.push(String($(this).val()));
+							});
+							var $list = $box.find(".yith-wfbt2-set-qty-list");
+							$list.empty();
+							if (!selectedIds.length) {
+								$list.append('<p class="description yith-wfbt2-set-qty-empty"><?php echo esc_js( __( 'Select products to define quantities.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
+								$box.find(".yith-wfbt2-qty-map-data").val("{}");
+								return;
+							}
+							var normalizedMap = {};
+							selectedIds.forEach(function(productId) {
+								var label = $.trim($select.find('option[value="' + productId + '"]').text()) || ("#" + productId);
+								var qty = parseInt(map[productId], 10);
+								if (!qty || qty < 1) {
+									qty = 1;
+								}
+								normalizedMap[productId] = qty;
+								var rowHtml = '' +
+									'<div class="yith-wfbt2-set-qty-row">' +
+										'<span class="yith-wfbt2-set-qty-name">' + label + '</span>' +
+										'<input type="number" min="1" class="yith-wfbt2-set-qty-input" data-product-id="' + productId + '" ' +
+										'name="yith_wfbt2_categories[' + index + '][qty][' + productId + ']" value="' + qty + '" />' +
+									'</div>';
+								$list.append(rowHtml);
+							});
+							$box.find(".yith-wfbt2-qty-map-data").val(JSON.stringify(normalizedMap));
+						}
+
+						function initSetBox($box) {
+							var $select = $box.find(".yith-wfbt2-set-products");
+							if ($select.length) {
+								reorderSelect2Options($select);
+							}
+							syncSetQtyRows($box);
+							var hasImage = parseInt($box.find(".yith-wfbt2-set-image-id").val(), 10) > 0;
+							$box.find(".yith-wfbt2-remove-image").toggle(hasImage);
+						}
+
 						function toggleMode() {
 							var mode = $('input[name="yith_wfbt2_mode"]:checked').val();
-							if (mode === 'categorical') {
-								$('.yith-wfbt2-mode-set').hide();
-								$('.yith-wfbt2-mode-categorical').show();
+							if (mode === "categorical") {
+								$(".yith-wfbt2-mode-set").hide();
+								$(".yith-wfbt2-mode-categorical").show();
 							} else {
-								$('.yith-wfbt2-mode-set').show();
-								$('.yith-wfbt2-mode-categorical').hide();
+								$(".yith-wfbt2-mode-set").show();
+								$(".yith-wfbt2-mode-categorical").hide();
 							}
 						}
 
 						toggleMode();
+						$(document).on("change", 'input[name="yith_wfbt2_mode"]', toggleMode);
 
-						$(document).on('change', 'input[name="yith_wfbt2_mode"]', toggleMode);
-
-						var nextIndex = parseInt($('#yith_wfbt2_categories_next_index').val(), 10) || 0;
-
-						$(document).on('click', '.yith-wfbt2-add-category', function(event) {
+						var nextIndex = parseInt($("#yith_wfbt2_categories_next_index").val(), 10) || 0;
+						$(document).on("click", ".yith-wfbt2-add-category", function(event) {
 							event.preventDefault();
-							var template = $('#yith-wfbt2-category-template').html();
+							var template = $("#yith-wfbt2-category-template").html();
 							if (!template) {
 								return;
 							}
 							var html = template.replace(/__INDEX__/g, nextIndex);
 							nextIndex += 1;
-							$('#yith_wfbt2_categories_next_index').val(nextIndex);
-							$('.yith-wfbt2-categories').append(html);
-							$(document.body).trigger('wc-enhanced-select-init');
+							$("#yith_wfbt2_categories_next_index").val(nextIndex);
+							var $newBox = $(html);
+							$(".yith-wfbt2-categories").append($newBox);
+							$(document.body).trigger("wc-enhanced-select-init");
 							setTimeout(function() {
-								$('.yith-wfbt2-categories .wc-product-search').each(function() {
-									reorderSelect2Options($(this));
-								});
+								initSetBox($newBox);
 							}, 0);
 						});
 
-						$(document).on('click', '.yith-wfbt2-remove-category', function(event) {
+						$(document).on("click", ".yith-wfbt2-remove-category", function(event) {
 							event.preventDefault();
-							$(this).closest('.yith-wfbt2-category-box').remove();
+							$(this).closest(".yith-wfbt2-category-box").remove();
 						});
 
-						$(document).on('change', '.wc-product-search', function() {
-							reorderSelect2Options($(this));
+						$(document).on("change", ".yith-wfbt2-set-products", function() {
+							var $select = $(this);
+							reorderSelect2Options($select);
+							syncSetQtyRows($select.closest(".yith-wfbt2-category-box"));
 						});
 
-						setTimeout(function() {
-							$('.wc-product-search').each(function() {
-								reorderSelect2Options($(this));
+						$(document).on("change", ".yith-wfbt2-set-qty-input", function() {
+							var value = parseInt($(this).val(), 10);
+							if (!value || value < 1) {
+								value = 1;
+								$(this).val(value);
+							}
+							var $box = $(this).closest(".yith-wfbt2-category-box");
+							var map = collectQtyMap($box);
+							$box.find(".yith-wfbt2-qty-map-data").val(JSON.stringify(map));
+						});
+
+						$(document).on("click", ".yith-wfbt2-upload-image", function(event) {
+							event.preventDefault();
+							if (typeof wp === "undefined" || !wp.media) {
+								return;
+							}
+							var $box = $(this).closest(".yith-wfbt2-category-box");
+							var frame = wp.media({
+								title: '<?php echo esc_js( __( 'Select set image', 'yith-woocommerce-frequently-bought-together' ) ); ?>',
+								button: { text: '<?php echo esc_js( __( 'Use this image', 'yith-woocommerce-frequently-bought-together' ) ); ?>' },
+								multiple: false
 							});
-						}, 0);
+							frame.on("select", function() {
+								var attachment = frame.state().get("selection").first().toJSON();
+								var imageUrl = attachment.sizes && attachment.sizes.thumbnail ? attachment.sizes.thumbnail.url : attachment.url;
+								$box.find(".yith-wfbt2-set-image-id").val(attachment.id);
+								$box.find(".yith-wfbt2-set-image-preview").html('<img src="' + imageUrl + '" alt="" />');
+								$box.find(".yith-wfbt2-remove-image").show();
+							});
+							frame.open();
+						});
+
+						$(document).on("click", ".yith-wfbt2-remove-image", function(event) {
+							event.preventDefault();
+							var $box = $(this).closest(".yith-wfbt2-category-box");
+							$box.find(".yith-wfbt2-set-image-id").val("");
+							$box.find(".yith-wfbt2-set-image-preview").empty();
+							$(this).hide();
+						});
+
+						$(".yith-wfbt2-category-box").each(function() {
+							initSetBox($(this));
+						});
 					});
 				</script>
 
 				<style>
-					.yith-wfbt2-mode-field .yith-wfbt2-mode-options {
-						display: flex !important;
-						flex-wrap: wrap;
-						gap: 16px;
-						align-items: center;
-					}
-					.yith-wfbt2-mode-field .yith-wfbt2-mode-option {
-						display: inline-flex;
-					}
-					.yith-wfbt2-mode-field .yith-wfbt2-mode-options label {
-						float: none !important;
-						clear: none !important;
-						width: auto !important;
-						display: inline-flex !important;
-						align-items: center;
-						gap: 6px;
-						margin: 0;
-						white-space: nowrap;
-					}
-					.yith-wfbt2-category-box {
-						border: 1px solid #ddd;
-						padding: 10px;
-						margin-bottom: 12px;
-					}
+					.yith-wfbt2-mode-field .yith-wfbt2-mode-options { display: flex !important; flex-wrap: wrap; gap: 16px; align-items: center; }
+					.yith-wfbt2-mode-field .yith-wfbt2-mode-option { display: inline-flex; }
+					.yith-wfbt2-mode-field .yith-wfbt2-mode-options label { float: none !important; clear: none !important; width: auto !important; display: inline-flex !important; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
+					.yith-wfbt2-category-box { border: 1px solid #ddd; padding: 10px; margin-bottom: 12px; }
+					.yith-wfbt2-set-image-preview { display: inline-flex; vertical-align: middle; margin-right: 8px; min-width: 56px; min-height: 56px; align-items: center; justify-content: center; border: 1px solid #e5e5e5; background: #fff; }
+					.yith-wfbt2-set-image-preview img { max-width: 56px; height: auto; display: block; }
+					.yith-wfbt2-set-qty-wrapper { margin: 12px 0; }
+					.yith-wfbt2-set-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+					.yith-wfbt2-set-qty-name { flex: 1 1 auto; }
+					.yith-wfbt2-set-qty-input { width: 90px; }
 				</style>
-
 			</div>
-
 			<?php
 		}
 
 		/**
-		 * Ajax action search product
-		 *
-		 * @since  1.0.0
+		 * Ajax action search product.
 		 */
 		public function yith_wfbt2_ajax_search_product() {
-
 			ob_start();
 
 			check_ajax_referer( 'search-products', 'security' );
-            // @codingStandardsIgnoreStart
-
+			// @codingStandardsIgnoreStart
 			$term       = isset( $_GET['term'] ) ? (string) wc_clean( stripslashes( $_GET['term'] ) ) : '';
 			$post_types = array( 'product', 'product_variation' );
-
 			$to_exclude = isset( $_GET['exclude'] ) ? explode( ',', wc_clean( stripslashes( $_GET['exclude'] ) ) ) : false;
-            // @codingStandardsIgnoreEnd
+			// @codingStandardsIgnoreEnd
+
 			if ( empty( $term ) ) {
 				die();
 			}
@@ -490,13 +581,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				's'              => $term,
 				'fields'         => 'ids',
 			);
-
 			if ( $to_exclude ) {
 				$args['post__not_in'] = $to_exclude;
 			}
 
 			if ( is_numeric( $term ) ) {
-
 				$args2 = array(
 					'post_type'      => $post_types,
 					'post_status'    => 'publish',
@@ -504,7 +593,6 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					'post__in'       => array( 0, $term ),
 					'fields'         => 'ids',
 				);
-
 				$args3 = array(
 					'post_type'      => $post_types,
 					'post_status'    => 'publish',
@@ -512,12 +600,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					'post_parent'    => $term,
 					'fields'         => 'ids',
 				);
-
 				$args4 = array(
 					'post_type'      => $post_types,
 					'post_status'    => 'publish',
 					'posts_per_page' => -1,
-					'meta_query'     => array( //phpcs:ignore slow query ok.
+					'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 						array(
 							'key'     => '_sku',
 							'value'   => $term,
@@ -526,16 +613,13 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					),
 					'fields'         => 'ids',
 				);
-
 				$posts = array_unique( array_merge( get_posts( $args ), get_posts( $args2 ), get_posts( $args3 ), get_posts( $args4 ) ) );
-
 			} else {
-
 				$args2 = array(
 					'post_type'      => $post_types,
 					'post_status'    => 'publish',
 					'posts_per_page' => -1,
-					'meta_query'     => array( //phpcs:ignore slow query ok.
+					'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 						array(
 							'key'     => '_sku',
 							'value'   => $term,
@@ -544,28 +628,23 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					),
 					'fields'         => 'ids',
 				);
-
 				$posts = array_unique( array_merge( get_posts( $args ), get_posts( $args2 ) ) );
-
 			}
 
 			$found_products = array();
-
 			if ( $posts ) {
-				foreach ( $posts as $post ) {
-					$current_id = $post;
-					$product    = wc_get_product( $post );
-					// exclude variable product.
+				foreach ( $posts as $search_post_id ) {
+					$product = wc_get_product( $search_post_id );
 					if ( ! $product || $product->is_type( array( 'variable', 'external' ) ) ) {
 						continue;
-					} elseif ( $product->is_type( 'variation' ) ) {
-						$current_id = wp_get_post_parent_id( $post );
-						if ( ! wc_get_product( $current_id ) ) {
+					}
+					if ( $product->is_type( 'variation' ) ) {
+						$parent_id = wp_get_post_parent_id( $search_post_id );
+						if ( ! wc_get_product( $parent_id ) ) {
 							continue;
 						}
 					}
-
-					$found_products[ $post ] = rawurldecode( $product->get_formatted_name() );
+					$found_products[ $search_post_id ] = rawurldecode( $product->get_formatted_name() );
 				}
 			}
 
@@ -573,20 +652,18 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 		}
 
 		/**
-		 * Save options in upselling tab
+		 * Save panel options.
 		 *
-		 * @since  1.0.0
-		 * @param mixed $post_id Post ID.
+		 * @param int $post_id Post ID.
 		 */
-				public function save_bought_together_tab( $post_id ) {
-
-			$product = wc_get_product( $post_id );
-			$meta_key = defined( 'YITH_WFBT2_META' ) ? YITH_WFBT2_META : '_yith_wfbt2_ids';
-			$mode_key = defined( 'YITH_WFBT2_MODE_META' ) ? YITH_WFBT2_MODE_META : '_yith_wfbt2_mode';
+		public function save_bought_together_tab( $post_id ) {
+			$product        = wc_get_product( $post_id );
+			$meta_key       = defined( 'YITH_WFBT2_META' ) ? YITH_WFBT2_META : '_yith_wfbt2_ids';
+			$mode_key       = defined( 'YITH_WFBT2_MODE_META' ) ? YITH_WFBT2_MODE_META : '_yith_wfbt2_mode';
 			$categories_key = defined( 'YITH_WFBT2_CATEGORIES_META' ) ? YITH_WFBT2_CATEGORIES_META : '_yith_wfbt2_categories';
 
 			$mode = 'simple';
-			if ( isset( $_POST['yith_wfbt2_mode'] ) ) {//phpcs:ignore WordPress.Security.NonceVerification
+			if ( isset( $_POST['yith_wfbt2_mode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 				$mode = sanitize_text_field( wp_unslash( $_POST['yith_wfbt2_mode'] ) );
 			}
 			if ( 'set' === $mode ) {
@@ -599,49 +676,62 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 
 			if ( 'simple' === $mode ) {
 				$products_array = array();
-				if ( isset( $_POST['yith_wfbt2_ids'] ) ) {//phpcs:ignore WordPress.Security.NonceVerification
-					$products_array = ! is_array( $_POST['yith_wfbt2_ids'] ) ? explode( ',', stripslashes_deep( array_map( 'sanitize_text_field', $_POST['yith_wfbt2_ids'] ) ) ) : stripslashes_deep( array_map( 'sanitize_text_field', $_POST['yith_wfbt2_ids'] ) );//phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput
+				if ( isset( $_POST['yith_wfbt2_ids'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+					$products_array = ! is_array( $_POST['yith_wfbt2_ids'] ) ? explode( ',', stripslashes_deep( array_map( 'sanitize_text_field', $_POST['yith_wfbt2_ids'] ) ) ) : stripslashes_deep( array_map( 'sanitize_text_field', $_POST['yith_wfbt2_ids'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 					$products_array = array_filter( array_map( 'intval', $products_array ) );
 				}
 				yit_save_prop( $product, $meta_key, $products_array );
 			}
 
 			if ( 'categorical' === $mode ) {
-				$categories = array();
-				$raw_categories = isset( $_POST['yith_wfbt2_categories'] ) ? wp_unslash( $_POST['yith_wfbt2_categories'] ) : array();//phpcs:ignore WordPress.Security.NonceVerification
+				$categories     = array();
+				$raw_categories = isset( $_POST['yith_wfbt2_categories'] ) ? wp_unslash( $_POST['yith_wfbt2_categories'] ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 				if ( is_array( $raw_categories ) ) {
 					foreach ( $raw_categories as $category ) {
-						$name = isset( $category['name'] ) ? sanitize_text_field( $category['name'] ) : '';
-						$match = isset( $category['match'] ) ? sanitize_text_field( $category['match'] ) : '';
-						$message = isset( $category['message'] ) ? sanitize_text_field( $category['message'] ) : '';
+						$name     = isset( $category['name'] ) ? sanitize_text_field( $category['name'] ) : '';
+						$image_id = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
+
 						$products_raw = isset( $category['products'] ) ? $category['products'] : array();
 						if ( ! is_array( $products_raw ) ) {
 							$products_raw = explode( ',', $products_raw );
 						}
 						$products_raw = array_map( 'sanitize_text_field', (array) $products_raw );
-						$product_ids = array_filter( array_map( 'absint', $products_raw ) );
-						$product_ids = array_values( array_unique( $product_ids ) );
+						$product_ids  = array_filter( array_map( 'absint', $products_raw ) );
+						$product_ids  = array_values( array_unique( $product_ids ) );
 
-						if ( '' === $name && empty( $product_ids ) && '' === $match && '' === $message ) {
+						$qty_map = array();
+						$items   = array();
+						$qty_raw = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
+						foreach ( $product_ids as $set_product_id ) {
+							$qty = isset( $qty_raw[ $set_product_id ] ) ? absint( $qty_raw[ $set_product_id ] ) : 1;
+							$qty = max( 1, $qty );
+							$qty_map[ $set_product_id ] = $qty;
+							$items[] = array(
+								'product_id' => $set_product_id,
+								'qty'        => $qty,
+							);
+						}
+
+						if ( '' === $name && empty( $product_ids ) && ! $image_id ) {
 							continue;
 						}
 						$categories[] = array(
 							'name'     => $name,
-							'match'    => $match,
-							'message'  => $message,
+							'image_id' => $image_id,
 							'products' => $product_ids,
+							'qty'      => $qty_map,
+							'items'    => $items,
 						);
 					}
 				}
 				yit_save_prop( $product, $categories_key, $categories );
 			}
 		}
-
-
 	}
 }
+
 /**
- * Unique access to instance of YITH_WFBT2_Admin class
+ * Unique access to instance of YITH_WFBT2_Admin class.
  *
  * @since 1.0.0
  * @return \YITH_WFBT2_Admin

@@ -22,16 +22,13 @@ The plugin now keeps the product-level configuration and frontend selector behav
 * Product data tab: `Cross Selling Manual`
 * Two selectors in product config:
 * `Simple` mode (classic set behavior)
-* `Categorical` mode (category-based selector with image trigger)
-* Product quantity controls with stock-aware limits (`min=1`, `max=stock` when applicable)
-* Disabled `+`/`-` buttons at quantity limits
-* Main product can be included/excluded and has quantity controls
-* Category-level text matching:
-* `Match text` input per category
-* `Message` input per category
-* Frontend notices shown above main product when selected options match
-* Multiple matching notices are stacked (unique messages, no overwrite)
-* Admin selected product order is preserved and saved in the same order
+* `Categorical` mode (set-based selector with image trigger)
+* Set configuration in `Categorical` mode:
+* `Set name`
+* `Set image` (media library)
+* `Set products`
+* `Quantity per product` (fixed units per product inside the set)
+* Admin selected product order in each set is preserved and saved in the same order
 
 = What was removed intentionally =
 
@@ -51,11 +48,8 @@ The plugin now keeps the product-level configuration and frontend selector behav
 
 1. Open a product in admin.
 2. In `Cross Selling Manual`, choose `Simple` or `Categorical`.
-3. If using `Categorical`, create categories and select products per category.
-4. Optional per category:
-* Set `Match text` (example: `Doble`)
-* Set `Message` to show when a selected product name contains that text
-5. Save product and test on frontend.
+3. If using `Categorical`, create sets, assign image/name, then add products and fixed quantity per product.
+4. Save product and test on frontend.
 
 == Changelog ==
 
@@ -63,9 +57,9 @@ The plugin now keeps the product-level configuration and frontend selector behav
 
 * Fork scope reduced to manual cross-selling use case
 * Added/kept shortcode-first rendering flow via `[fbt_product_check_2]`
-* Added category match/message configuration and dynamic notice rendering
+* Added set match/message configuration and dynamic notice rendering
 * Added quantity controls and stock-aware limits (including main product row)
 * Added stacked multi-message notices for simultaneous matches
-* Preserved admin selection order for category products
+* Preserved admin selection order for set products
+* Reworked categorical frontend to set-based image selector with "Set contiene" panel and fixed per-item quantities
 * Removed auto insert, Gutenberg block flow, settings/premium panel flow, and extra shortcode path
-

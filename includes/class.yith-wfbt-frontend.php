@@ -173,48 +173,74 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 					return '';
 				}
 
+				$image_size = apply_filters( 'yith_wcfbt2_image_size', 'yith_wfbt_image_size' );
 				$prepared_categories = array();
 				foreach ( $categories as $category ) {
-					$category_name = isset( $category['name'] ) ? $category['name'] : '';
-					$category_products = isset( $category['products'] ) ? $category['products'] : array();
-					$category_match = isset( $category['match'] ) ? $category['match'] : '';
-					$category_message = isset( $category['message'] ) ? $category['message'] : '';
+					$category_name  = isset( $category['name'] ) ? $category['name'] : '';
+					$category_image = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
+					$category_qty   = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
+					$category_items = isset( $category['items'] ) && is_array( $category['items'] ) ? $category['items'] : array();
 
-					if ( is_string( $category_products ) ) {
-						$category_products = explode( ',', $category_products );
+					if ( empty( $category_items ) ) {
+						$category_products = isset( $category['products'] ) ? $category['products'] : array();
+						if ( is_string( $category_products ) ) {
+							$category_products = explode( ',', $category_products );
+						}
+						$category_products = array_filter( array_map( 'absint', (array) $category_products ) );
+						foreach ( $category_products as $category_product_id ) {
+							$category_items[] = array(
+								'product_id' => $category_product_id,
+								'qty'        => isset( $category_qty[ $category_product_id ] ) ? max( 1, absint( $category_qty[ $category_product_id ] ) ) : 1,
+							);
+						}
 					}
-					$category_products = array_filter( array_map( 'absint', (array) $category_products ) );
 
-					$products = array();
-					foreach ( $category_products as $category_product_id ) {
-						$current = wc_get_product( $category_product_id );
+					$items = array();
+					foreach ( $category_items as $category_item ) {
+						$item_product_id = isset( $category_item['product_id'] ) ? absint( $category_item['product_id'] ) : 0;
+						$item_qty        = isset( $category_item['qty'] ) ? max( 1, absint( $category_item['qty'] ) ) : 1;
+						if ( ! $item_product_id ) {
+							continue;
+						}
+						$current = wc_get_product( $item_product_id );
 						if ( ! $current || ! $current->is_purchasable() || ! $current->is_in_stock() ) {
 							continue;
 						}
-						$products[] = $current;
+						$items[] = array(
+							'product_id' => $item_product_id,
+							'qty'        => $item_qty,
+							'product'    => $current,
+						);
 					}
 
-					if ( empty( $products ) ) {
+					if ( empty( $items ) ) {
 						continue;
 					}
 
+					$set_image = $category_image ? wp_get_attachment_image( $category_image, $image_size ) : '';
+					if ( ! $set_image ) {
+						$set_image = $items[0]['product']->get_image( $image_size );
+					}
+
 					$prepared_categories[] = array(
-						'name'     => $category_name,
-						'match'    => $category_match,
-						'message'  => $category_message,
-						'products' => $products,
+						'name'  => $category_name,
+						'image' => $set_image,
+						'items' => $items,
 					);
 				}
 
 				$debug_data['prepared_categories'] = array_map(
 					function( $category ) {
 						return array(
-							'name'        => $category['name'],
-							'product_ids' => array_map(
+							'name'  => $category['name'],
+							'items' => array_map(
 								function( $item ) {
-									return $item->get_id();
+									return array(
+										'product_id' => $item['product_id'],
+										'qty'        => $item['qty'],
+									);
 								},
-								$category['products']
+								$category['items']
 							),
 						);
 					},
