@@ -145,12 +145,90 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 			if ( empty( $categories ) ) {
 				$categories = array(
 					array(
-						'name'     => '',
-						'products' => array(),
-						'qty'      => array(),
+						'name'  => '',
+						'types' => array(
+							array(
+								'name'     => '',
+								'products' => array(),
+								'qty'      => array(),
+							),
+						),
 					),
 				);
 			}
+
+			$normalize_category_types = function( $category ) {
+				$types = isset( $category['types'] ) && is_array( $category['types'] ) ? $category['types'] : array();
+				if ( empty( $types ) ) {
+					$legacy_products = isset( $category['products'] ) ? $category['products'] : array();
+					$legacy_qty      = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
+
+					if ( is_string( $legacy_products ) ) {
+						$legacy_products = explode( ',', $legacy_products );
+					}
+					$legacy_products = array_filter( array_map( 'absint', (array) $legacy_products ) );
+
+					if ( empty( $legacy_products ) && isset( $category['items'] ) && is_array( $category['items'] ) ) {
+						foreach ( $category['items'] as $legacy_item ) {
+							$legacy_product_id = isset( $legacy_item['product_id'] ) ? absint( $legacy_item['product_id'] ) : 0;
+							$legacy_item_qty   = isset( $legacy_item['qty'] ) ? max( 1, absint( $legacy_item['qty'] ) ) : 1;
+							if ( ! $legacy_product_id ) {
+								continue;
+							}
+							$legacy_products[]                     = $legacy_product_id;
+							$legacy_qty[ $legacy_product_id ] = $legacy_item_qty;
+						}
+					}
+
+					$legacy_products = array_values( array_unique( $legacy_products ) );
+					if ( ! empty( $legacy_products ) ) {
+						$types[] = array(
+							'name'     => '',
+							'products' => $legacy_products,
+							'qty'      => $legacy_qty,
+						);
+					}
+				}
+
+				$normalized_types = array();
+				foreach ( $types as $type ) {
+					$type_name = isset( $type['name'] ) ? sanitize_text_field( $type['name'] ) : '';
+					$type_qty  = isset( $type['qty'] ) && is_array( $type['qty'] ) ? $type['qty'] : array();
+
+					$type_products = isset( $type['products'] ) ? $type['products'] : array();
+					if ( is_string( $type_products ) ) {
+						$type_products = explode( ',', $type_products );
+					}
+					$type_products = array_filter( array_map( 'absint', (array) $type_products ) );
+					$type_products = array_values( array_unique( $type_products ) );
+
+					if ( empty( $type_products ) && '' === $type_name ) {
+						continue;
+					}
+
+					$type_qty_map = array();
+					foreach ( $type_products as $type_product_id ) {
+						$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
+						$type_qty_map[ $type_product_id ] = max( 1, $qty );
+					}
+
+					$normalized_types[] = array(
+						'name'     => $type_name,
+						'products' => $type_products,
+						'qty'      => $type_qty_map,
+					);
+				}
+
+				if ( empty( $normalized_types ) ) {
+					$normalized_types[] = array(
+						'name'     => '',
+						'products' => array(),
+						'qty'      => array(),
+					);
+				}
+
+				return $normalized_types;
+			};
 
 			ob_start();
 			?>
@@ -169,14 +247,36 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				</p>
 
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___products"><?php esc_html_e( 'Set products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label><?php esc_html_e( 'Types', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<div class="yith-wfbt2-set-types"></div>
+					<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Add Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+				</p>
+				<input type="hidden" class="yith-wfbt2-types-next-index" value="0"/>
+
+				<p>
+					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+				</p>
+			</div>
+			<?php
+			$category_template = ob_get_clean();
+
+			ob_start();
+			?>
+			<div class="yith-wfbt2-type-box" data-set-index="__SET_INDEX__" data-type-index="__TYPE_INDEX__">
+				<p class="form-field">
+					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___name"><?php esc_html_e( 'Type name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<input type="text" id="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___name" name="yith_wfbt2_categories[__SET_INDEX__][types][__TYPE_INDEX__][name]" value="" style="width: 50%;"/>
+				</p>
+
+				<p class="form-field">
+					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___products"><?php esc_html_e( 'Type products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<?php
 					yit_add_select2_fields(
 						array(
-							'class'             => 'wc-product-search yith-wfbt2-set-products',
+							'class'             => 'wc-product-search yith-wfbt2-type-products',
 							'style'             => 'width: 50%;',
-							'id'                => 'yith_wfbt2_categories___INDEX___products',
-							'name'              => 'yith_wfbt2_categories[__INDEX__][products]',
+							'id'                => 'yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___products',
+							'name'              => 'yith_wfbt2_categories[__SET_INDEX__][types][__TYPE_INDEX__][products]',
 							'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
 							'data-multiple'     => true,
 							'data-action'       => 'yith_wfbt2_ajax_search_product',
@@ -190,18 +290,18 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					?>
 				</p>
 
-				<input type="hidden" class="yith-wfbt2-qty-map-data" value="{}"/>
-				<div class="yith-wfbt2-set-qty-wrapper">
+				<input type="hidden" class="yith-wfbt2-type-qty-map-data" value="{}"/>
+				<div class="yith-wfbt2-type-qty-wrapper">
 					<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-					<div class="yith-wfbt2-set-qty-list"></div>
+					<div class="yith-wfbt2-type-qty-list"></div>
 				</div>
 
 				<p>
-					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Remove Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 			</div>
 			<?php
-			$category_template = ob_get_clean();
+			$type_template = ob_get_clean();
 			?>
 
 			<div id="yith_wfbt2_data_option" class="panel woocommerce_options_panel">
@@ -269,35 +369,10 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							<?php
 							$category_index = 0;
 							foreach ( $categories as $category ) {
-								$category_name    = isset( $category['name'] ) ? $category['name'] : '';
-								$category_image   = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
-								$category_qty_map = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
-
-								$category_products = isset( $category['products'] ) ? $category['products'] : array();
-								if ( is_string( $category_products ) ) {
-									$category_products = explode( ',', $category_products );
-								}
-								$category_products = array_filter( array_map( 'absint', (array) $category_products ) );
-
-								if ( empty( $category_products ) && isset( $category['items'] ) && is_array( $category['items'] ) ) {
-									foreach ( $category['items'] as $item_data ) {
-										$item_product_id = isset( $item_data['product_id'] ) ? absint( $item_data['product_id'] ) : 0;
-										$item_qty        = isset( $item_data['qty'] ) ? max( 1, absint( $item_data['qty'] ) ) : 1;
-										if ( $item_product_id ) {
-											$category_products[]                  = $item_product_id;
-											$category_qty_map[ $item_product_id ] = $item_qty;
-										}
-									}
-								}
-
-								$category_products = array_values( array_unique( $category_products ) );
-								$json_ids          = array();
-								foreach ( $category_products as $category_product_id ) {
-									$category_product = wc_get_product( $category_product_id );
-									if ( is_object( $category_product ) ) {
-										$json_ids[ $category_product_id ] = wp_kses_post( html_entity_decode( $category_product->get_formatted_name() ) );
-									}
-								}
+								$category_name  = isset( $category['name'] ) ? $category['name'] : '';
+								$category_image = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
+								$category_types = $normalize_category_types( $category );
+								$type_next_index = 0;
 								?>
 								<div class="yith-wfbt2-category-box" data-index="<?php echo esc_attr( $category_index ); ?>">
 									<p class="form-field">
@@ -314,32 +389,66 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 									</p>
 
 									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_products"><?php esc_html_e( 'Set products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-										<?php
-										yit_add_select2_fields(
-											array(
-												'class'             => 'wc-product-search yith-wfbt2-set-products',
-												'style'             => 'width: 50%;',
-												'id'                => 'yith_wfbt2_categories_' . $category_index . '_products',
-												'name'              => 'yith_wfbt2_categories[' . $category_index . '][products]',
-												'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
-												'data-multiple'     => true,
-												'data-action'       => 'yith_wfbt2_ajax_search_product',
-												'data-selected'     => $json_ids,
-												'value'             => implode( ',', array_keys( $json_ids ) ),
-												'custom-attributes' => array(
-													'data-exclude' => implode( ',', $to_exclude ),
-												),
-											)
-										);
-										?>
+										<label><?php esc_html_e( 'Types', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<div class="yith-wfbt2-set-types">
+											<?php foreach ( $category_types as $type_data ) : ?>
+												<?php
+												$type_name     = isset( $type_data['name'] ) ? $type_data['name'] : '';
+												$type_products = isset( $type_data['products'] ) ? array_filter( array_map( 'absint', (array) $type_data['products'] ) ) : array();
+												$type_qty_map  = isset( $type_data['qty'] ) && is_array( $type_data['qty'] ) ? $type_data['qty'] : array();
+
+												$type_json_ids = array();
+												foreach ( $type_products as $type_product_id ) {
+													$type_product = wc_get_product( $type_product_id );
+													if ( is_object( $type_product ) ) {
+														$type_json_ids[ $type_product_id ] = wp_kses_post( html_entity_decode( $type_product->get_formatted_name() ) );
+													}
+												}
+												?>
+												<div class="yith-wfbt2-type-box" data-set-index="<?php echo esc_attr( $category_index ); ?>" data-type-index="<?php echo esc_attr( $type_next_index ); ?>">
+													<p class="form-field">
+														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_name"><?php esc_html_e( 'Type name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_name" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][types][<?php echo esc_attr( $type_next_index ); ?>][name]" value="<?php echo esc_attr( $type_name ); ?>" style="width: 50%;"/>
+													</p>
+													<p class="form-field">
+														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_products"><?php esc_html_e( 'Type products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<?php
+														yit_add_select2_fields(
+															array(
+																'class'             => 'wc-product-search yith-wfbt2-type-products',
+																'style'             => 'width: 50%;',
+																'id'                => 'yith_wfbt2_categories_' . $category_index . '_types_' . $type_next_index . '_products',
+																'name'              => 'yith_wfbt2_categories[' . $category_index . '][types][' . $type_next_index . '][products]',
+																'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
+																'data-multiple'     => true,
+																'data-action'       => 'yith_wfbt2_ajax_search_product',
+																'data-selected'     => $type_json_ids,
+																'value'             => implode( ',', array_keys( $type_json_ids ) ),
+																'custom-attributes' => array(
+																	'data-exclude' => implode( ',', $to_exclude ),
+																),
+															)
+														);
+														?>
+													</p>
+
+													<input type="hidden" class="yith-wfbt2-type-qty-map-data" value="<?php echo esc_attr( wp_json_encode( $type_qty_map ) ); ?>"/>
+													<div class="yith-wfbt2-type-qty-wrapper">
+														<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<div class="yith-wfbt2-type-qty-list"></div>
+													</div>
+
+													<p>
+														<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Remove Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+													</p>
+												</div>
+												<?php $type_next_index++; ?>
+											<?php endforeach; ?>
+										</div>
+										<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Add Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
 
-									<input type="hidden" class="yith-wfbt2-qty-map-data" value="<?php echo esc_attr( wp_json_encode( $category_qty_map ) ); ?>"/>
-									<div class="yith-wfbt2-set-qty-wrapper">
-										<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-										<div class="yith-wfbt2-set-qty-list"></div>
-									</div>
+									<input type="hidden" class="yith-wfbt2-types-next-index" value="<?php echo esc_attr( $type_next_index ); ?>"/>
 
 									<p>
 										<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
@@ -358,6 +467,9 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				</div>
 				<script type="text/template" id="yith-wfbt2-category-template">
 					<?php echo $category_template; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</script>
+				<script type="text/template" id="yith-wfbt2-type-template">
+					<?php echo $type_template; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</script>
 
 				<script>
@@ -385,8 +497,8 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							});
 						}
 
-						function getStoredQtyMap($box) {
-							var raw = $box.find(".yith-wfbt2-qty-map-data").val() || "{}";
+						function getStoredQtyMap($typeBox) {
+							var raw = $typeBox.find(".yith-wfbt2-type-qty-map-data").val() || "{}";
 							try {
 								var parsed = JSON.parse(raw);
 								return parsed && typeof parsed === "object" ? parsed : {};
@@ -395,9 +507,9 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							}
 						}
 
-						function collectQtyMap($box) {
-							var map = getStoredQtyMap($box);
-							$box.find(".yith-wfbt2-set-qty-input").each(function() {
+						function collectQtyMap($typeBox) {
+							var map = getStoredQtyMap($typeBox);
+							$typeBox.find(".yith-wfbt2-type-qty-input").each(function() {
 								var productId = String($(this).data("productId"));
 								var qty = parseInt($(this).val(), 10);
 								map[productId] = qty && qty > 0 ? qty : 1;
@@ -405,22 +517,23 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							return map;
 						}
 
-						function syncSetQtyRows($box) {
-							var $select = $box.find(".yith-wfbt2-set-products");
+						function syncTypeQtyRows($typeBox) {
+							var $select = $typeBox.find(".yith-wfbt2-type-products");
 							if (!$select.length) {
 								return;
 							}
-							var map = collectQtyMap($box);
-							var index = $box.data("index");
+							var map = collectQtyMap($typeBox);
+							var setIndex = $typeBox.data("setIndex");
+							var typeIndex = $typeBox.data("typeIndex");
 							var selectedIds = [];
 							$select.find("option:selected").each(function() {
 								selectedIds.push(String($(this).val()));
 							});
-							var $list = $box.find(".yith-wfbt2-set-qty-list");
+							var $list = $typeBox.find(".yith-wfbt2-type-qty-list");
 							$list.empty();
 							if (!selectedIds.length) {
-								$list.append('<p class="description yith-wfbt2-set-qty-empty"><?php echo esc_js( __( 'Select products to define quantities.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
-								$box.find(".yith-wfbt2-qty-map-data").val("{}");
+								$list.append('<p class="description yith-wfbt2-type-qty-empty"><?php echo esc_js( __( 'Select products to define quantities.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
+								$typeBox.find(".yith-wfbt2-type-qty-map-data").val("{}");
 								return;
 							}
 							var normalizedMap = {};
@@ -432,24 +545,63 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								}
 								normalizedMap[productId] = qty;
 								var rowHtml = '' +
-									'<div class="yith-wfbt2-set-qty-row">' +
-										'<span class="yith-wfbt2-set-qty-name">' + label + '</span>' +
-										'<input type="number" min="1" class="yith-wfbt2-set-qty-input" data-product-id="' + productId + '" ' +
-										'name="yith_wfbt2_categories[' + index + '][qty][' + productId + ']" value="' + qty + '" />' +
+									'<div class="yith-wfbt2-type-qty-row">' +
+										'<span class="yith-wfbt2-type-qty-name">' + label + '</span>' +
+										'<input type="number" min="1" class="yith-wfbt2-type-qty-input" data-product-id="' + productId + '" ' +
+										'name="yith_wfbt2_categories[' + setIndex + '][types][' + typeIndex + '][qty][' + productId + ']" value="' + qty + '" />' +
 									'</div>';
 								$list.append(rowHtml);
 							});
-							$box.find(".yith-wfbt2-qty-map-data").val(JSON.stringify(normalizedMap));
+							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(normalizedMap));
 						}
 
-						function initSetBox($box) {
-							var $select = $box.find(".yith-wfbt2-set-products");
+						function initTypeBox($typeBox) {
+							var $select = $typeBox.find(".yith-wfbt2-type-products");
 							if ($select.length) {
 								reorderSelect2Options($select);
 							}
-							syncSetQtyRows($box);
-							var hasImage = parseInt($box.find(".yith-wfbt2-set-image-id").val(), 10) > 0;
-							$box.find(".yith-wfbt2-remove-image").toggle(hasImage);
+							syncTypeQtyRows($typeBox);
+						}
+
+						function buildTypeHtml(setIndex, typeIndex) {
+							var template = $("#yith-wfbt2-type-template").html();
+							if (!template) {
+								return "";
+							}
+							return template
+								.replace(/__SET_INDEX__/g, setIndex)
+								.replace(/__TYPE_INDEX__/g, typeIndex);
+						}
+
+						function addTypeToSet($setBox) {
+							var setIndex = $setBox.data("index");
+							var $nextIndexInput = $setBox.find(".yith-wfbt2-types-next-index");
+							var typeIndex = parseInt($nextIndexInput.val(), 10) || 0;
+							var html = buildTypeHtml(setIndex, typeIndex);
+							if (!html) {
+								return;
+							}
+							$nextIndexInput.val(typeIndex + 1);
+							var $newType = $(html);
+							$setBox.find(".yith-wfbt2-set-types").append($newType);
+							$(document.body).trigger("wc-enhanced-select-init");
+							setTimeout(function() {
+								initTypeBox($newType);
+							}, 0);
+						}
+
+						function initSetBox($setBox) {
+							var hasImage = parseInt($setBox.find(".yith-wfbt2-set-image-id").val(), 10) > 0;
+							$setBox.find(".yith-wfbt2-remove-image").toggle(hasImage);
+
+							var $types = $setBox.find(".yith-wfbt2-type-box");
+							if (!$types.length) {
+								addTypeToSet($setBox);
+								return;
+							}
+							$types.each(function() {
+								initTypeBox($(this));
+							});
 						}
 
 						function toggleMode() {
@@ -489,21 +641,36 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$(this).closest(".yith-wfbt2-category-box").remove();
 						});
 
-						$(document).on("change", ".yith-wfbt2-set-products", function() {
-							var $select = $(this);
-							reorderSelect2Options($select);
-							syncSetQtyRows($select.closest(".yith-wfbt2-category-box"));
+						$(document).on("click", ".yith-wfbt2-add-type", function(event) {
+							event.preventDefault();
+							var $setBox = $(this).closest(".yith-wfbt2-category-box");
+							addTypeToSet($setBox);
 						});
 
-						$(document).on("change", ".yith-wfbt2-set-qty-input", function() {
+						$(document).on("click", ".yith-wfbt2-remove-type", function(event) {
+							event.preventDefault();
+							var $setBox = $(this).closest(".yith-wfbt2-category-box");
+							$(this).closest(".yith-wfbt2-type-box").remove();
+							if (!$setBox.find(".yith-wfbt2-type-box").length) {
+								addTypeToSet($setBox);
+							}
+						});
+
+						$(document).on("change", ".yith-wfbt2-type-products", function() {
+							var $select = $(this);
+							reorderSelect2Options($select);
+							syncTypeQtyRows($select.closest(".yith-wfbt2-type-box"));
+						});
+
+						$(document).on("change", ".yith-wfbt2-type-qty-input", function() {
 							var value = parseInt($(this).val(), 10);
 							if (!value || value < 1) {
 								value = 1;
 								$(this).val(value);
 							}
-							var $box = $(this).closest(".yith-wfbt2-category-box");
-							var map = collectQtyMap($box);
-							$box.find(".yith-wfbt2-qty-map-data").val(JSON.stringify(map));
+							var $typeBox = $(this).closest(".yith-wfbt2-type-box");
+							var map = collectQtyMap($typeBox);
+							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(map));
 						});
 
 						$(document).on("click", ".yith-wfbt2-upload-image", function(event) {
@@ -546,12 +713,13 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					.yith-wfbt2-mode-field .yith-wfbt2-mode-option { display: inline-flex; }
 					.yith-wfbt2-mode-field .yith-wfbt2-mode-options label { float: none !important; clear: none !important; width: auto !important; display: inline-flex !important; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
 					.yith-wfbt2-category-box { border: 1px solid #ddd; padding: 10px; margin-bottom: 12px; }
+					.yith-wfbt2-type-box { border: 1px dashed #d6d6d6; padding: 10px; margin: 8px 0; background: #fafafa; }
 					.yith-wfbt2-set-image-preview { display: inline-flex; vertical-align: middle; margin-right: 8px; min-width: 56px; min-height: 56px; align-items: center; justify-content: center; border: 1px solid #e5e5e5; background: #fff; }
 					.yith-wfbt2-set-image-preview img { max-width: 56px; height: auto; display: block; }
-					.yith-wfbt2-set-qty-wrapper { margin: 12px 0; }
-					.yith-wfbt2-set-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-					.yith-wfbt2-set-qty-name { flex: 1 1 auto; }
-					.yith-wfbt2-set-qty-input { width: 90px; }
+					.yith-wfbt2-type-qty-wrapper { margin: 12px 0; }
+					.yith-wfbt2-type-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+					.yith-wfbt2-type-qty-name { flex: 1 1 auto; }
+					.yith-wfbt2-type-qty-input { width: 90px; }
 				</style>
 			</div>
 			<?php
@@ -691,35 +859,78 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 						$name     = isset( $category['name'] ) ? sanitize_text_field( $category['name'] ) : '';
 						$image_id = isset( $category['image_id'] ) ? absint( $category['image_id'] ) : 0;
 
-						$products_raw = isset( $category['products'] ) ? $category['products'] : array();
-						if ( ! is_array( $products_raw ) ) {
-							$products_raw = explode( ',', $products_raw );
+						$raw_types = isset( $category['types'] ) && is_array( $category['types'] ) ? $category['types'] : array();
+						if ( empty( $raw_types ) ) {
+							$legacy_products = isset( $category['products'] ) ? $category['products'] : array();
+							if ( ! is_array( $legacy_products ) ) {
+								$legacy_products = explode( ',', $legacy_products );
+							}
+							$legacy_products = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $legacy_products ) ) );
+							$legacy_products = array_values( array_unique( $legacy_products ) );
+							if ( ! empty( $legacy_products ) ) {
+								$raw_types[] = array(
+									'name'     => '',
+									'products' => $legacy_products,
+									'qty'      => isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array(),
+								);
+							}
 						}
-						$products_raw = array_map( 'sanitize_text_field', (array) $products_raw );
-						$product_ids  = array_filter( array_map( 'absint', $products_raw ) );
-						$product_ids  = array_values( array_unique( $product_ids ) );
 
-						$qty_map = array();
-						$items   = array();
-						$qty_raw = isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array();
-						foreach ( $product_ids as $set_product_id ) {
-							$qty = isset( $qty_raw[ $set_product_id ] ) ? absint( $qty_raw[ $set_product_id ] ) : 1;
-							$qty = max( 1, $qty );
-							$qty_map[ $set_product_id ] = $qty;
-							$items[] = array(
-								'product_id' => $set_product_id,
-								'qty'        => $qty,
+						$types           = array();
+						$flat_product_ids = array();
+						$flat_qty_map     = array();
+
+						foreach ( $raw_types as $raw_type ) {
+							$type_name = isset( $raw_type['name'] ) ? sanitize_text_field( $raw_type['name'] ) : '';
+							$type_qty  = isset( $raw_type['qty'] ) && is_array( $raw_type['qty'] ) ? $raw_type['qty'] : array();
+
+							$type_products = isset( $raw_type['products'] ) ? $raw_type['products'] : array();
+							if ( ! is_array( $type_products ) ) {
+								$type_products = explode( ',', $type_products );
+							}
+							$type_products = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $type_products ) ) );
+							$type_products = array_values( array_unique( $type_products ) );
+
+							$type_qty_map = array();
+							foreach ( $type_products as $type_product_id ) {
+								$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
+								$qty = max( 1, $qty );
+								$type_qty_map[ $type_product_id ] = $qty;
+
+								if ( ! in_array( $type_product_id, $flat_product_ids, true ) ) {
+									$flat_product_ids[] = $type_product_id;
+									$flat_qty_map[ $type_product_id ] = $qty;
+								}
+							}
+
+							if ( '' === $type_name && empty( $type_products ) ) {
+								continue;
+							}
+
+							$types[] = array(
+								'name'     => $type_name,
+								'products' => $type_products,
+								'qty'      => $type_qty_map,
 							);
 						}
 
-						if ( '' === $name && empty( $product_ids ) && ! $image_id ) {
+						$items = array();
+						foreach ( $flat_product_ids as $flat_product_id ) {
+							$items[] = array(
+								'product_id' => $flat_product_id,
+								'qty'        => isset( $flat_qty_map[ $flat_product_id ] ) ? max( 1, absint( $flat_qty_map[ $flat_product_id ] ) ) : 1,
+							);
+						}
+
+						if ( '' === $name && empty( $types ) && ! $image_id ) {
 							continue;
 						}
 						$categories[] = array(
 							'name'     => $name,
 							'image_id' => $image_id,
-							'products' => $product_ids,
-							'qty'      => $qty_map,
+							'types'    => $types,
+							'products' => $flat_product_ids,
+							'qty'      => $flat_qty_map,
 							'items'    => $items,
 						);
 					}

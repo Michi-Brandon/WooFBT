@@ -26,9 +26,10 @@ The plugin now keeps the product-level configuration and frontend selector behav
 * Set configuration in `Categorical` mode:
 * `Set name`
 * `Set image` (media library)
-* `Set products`
-* `Quantity per product` (fixed units per product inside the set)
-* Admin selected product order in each set is preserved and saved in the same order
+* `Types` per set (for example: `Soportes`, `Terminales`, etc.)
+* `Type products` (ordered select2 list per type)
+* `Quantity per product` (fixed units per option product)
+* Admin selected product order is preserved for each type
 
 = What was removed intentionally =
 
@@ -48,7 +49,7 @@ The plugin now keeps the product-level configuration and frontend selector behav
 
 1. Open a product in admin.
 2. In `Cross Selling Manual`, choose `Simple` or `Categorical`.
-3. If using `Categorical`, create sets, assign image/name, then add products and fixed quantity per product.
+3. If using `Categorical`, create sets, assign image/name, then add types and products per type with fixed quantity.
 4. Save product and test on frontend.
 
 == Changelog ==

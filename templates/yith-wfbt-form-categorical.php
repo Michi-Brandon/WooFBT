@@ -35,75 +35,159 @@ $prepared_sets = array();
 foreach ( $categories as $category ) {
 	$set_name  = isset( $category['name'] ) ? trim( $category['name'] ) : '';
 	$set_image = isset( $category['image'] ) ? $category['image'] : '';
-	$set_items = isset( $category['items'] ) && is_array( $category['items'] ) ? $category['items'] : array();
+	$set_types = isset( $category['types'] ) && is_array( $category['types'] ) ? $category['types'] : array();
 
-	if ( empty( $set_items ) ) {
+	if ( empty( $set_types ) ) {
+		$legacy_items = isset( $category['items'] ) && is_array( $category['items'] ) ? $category['items'] : array();
+		if ( ! empty( $legacy_items ) ) {
+			$set_types[] = array(
+				'name'              => '',
+				'default_product_id' => 0,
+				'options'           => $legacy_items,
+			);
+		}
+	}
+
+	if ( empty( $set_types ) ) {
 		continue;
 	}
 
-	$prepared_items = array();
+	$prepared_types = array();
 	$set_total      = 0;
 
-	foreach ( $set_items as $set_item ) {
-		$item_product = false;
-		$item_id      = 0;
-		$item_qty     = 1;
+	foreach ( $set_types as $set_type_index => $set_type ) {
+		$type_name            = isset( $set_type['name'] ) ? trim( $set_type['name'] ) : '';
+		$type_default_product = isset( $set_type['default_product_id'] ) ? absint( $set_type['default_product_id'] ) : 0;
+		$type_options_raw     = isset( $set_type['options'] ) && is_array( $set_type['options'] ) ? $set_type['options'] : array();
+		$prepared_options     = array();
+		$selected_product_id  = 0;
 
-		if ( is_array( $set_item ) && isset( $set_item['product'] ) && is_object( $set_item['product'] ) ) {
-			$item_product = $set_item['product'];
-			$item_id      = $item_product->get_id();
-			$item_qty     = isset( $set_item['qty'] ) ? max( 1, absint( $set_item['qty'] ) ) : 1;
-		} elseif ( is_array( $set_item ) && isset( $set_item['product_id'] ) ) {
-			$item_id  = absint( $set_item['product_id'] );
-			$item_qty = isset( $set_item['qty'] ) ? max( 1, absint( $set_item['qty'] ) ) : 1;
-			if ( $item_id ) {
-				$item_product = wc_get_product( $item_id );
+		if ( empty( $type_options_raw ) && isset( $set_type['products'] ) ) {
+			$type_qty_map = isset( $set_type['qty'] ) && is_array( $set_type['qty'] ) ? $set_type['qty'] : array();
+			$type_products = $set_type['products'];
+			if ( is_string( $type_products ) ) {
+				$type_products = explode( ',', $type_products );
+			}
+			$type_products = array_filter( array_map( 'absint', (array) $type_products ) );
+			foreach ( $type_products as $type_product_id ) {
+				$type_options_raw[] = array(
+					'product_id' => $type_product_id,
+					'qty'        => isset( $type_qty_map[ $type_product_id ] ) ? max( 1, absint( $type_qty_map[ $type_product_id ] ) ) : 1,
+				);
 			}
 		}
 
-		if ( ! $item_product || ! $item_id || ! $item_product->is_purchasable() || ! $item_product->is_in_stock() ) {
+		foreach ( $type_options_raw as $type_option ) {
+			$option_product = false;
+			$option_id      = 0;
+			$option_qty     = 1;
+			$option_avail   = false;
+
+			if ( is_array( $type_option ) && isset( $type_option['product'] ) && is_object( $type_option['product'] ) ) {
+				$option_product = $type_option['product'];
+				$option_id      = $option_product->get_id();
+			} elseif ( is_array( $type_option ) && isset( $type_option['product_id'] ) ) {
+				$option_id = absint( $type_option['product_id'] );
+				if ( $option_id ) {
+					$option_product = wc_get_product( $option_id );
+				}
+			}
+
+			if ( ! $option_product || ! $option_id ) {
+				continue;
+			}
+
+			$option_qty = isset( $type_option['qty'] ) ? max( 1, absint( $type_option['qty'] ) ) : 1;
+			$option_avail = isset( $type_option['available'] ) ? (bool) $type_option['available'] : ( $option_product->is_purchasable() && $option_product->is_in_stock() );
+
+			$option_stock_max = '';
+			if ( $option_product->managing_stock() && ! $option_product->backorders_allowed() ) {
+				$option_stock_qty = $option_product->get_stock_quantity();
+				if ( is_numeric( $option_stock_qty ) && intval( $option_stock_qty ) > 0 ) {
+					$option_stock_max = intval( $option_stock_qty );
+				}
+			}
+
+			if ( $option_stock_max && $option_qty > $option_stock_max ) {
+				$option_qty = $option_stock_max;
+			}
+
+			if ( $option_qty < 1 ) {
+				$option_avail = false;
+			}
+
+			$option_name  = $option_product->get_title();
+			$option_price = floatval( wc_get_price_to_display( $option_product ) );
+			$option_total = $option_price * $option_qty;
+
+			$prepared_options[] = array(
+				'id'         => $option_id,
+				'name'       => $option_name,
+				'qty'        => $option_qty,
+				'price'      => $option_price,
+				'price_html' => $option_product->get_price_html(),
+				'total'      => $option_total,
+				'image'      => $option_product->get_image( $size ),
+				'stock_max'  => $option_stock_max,
+				'available'  => $option_avail,
+			);
+		}
+
+		if ( empty( $prepared_options ) ) {
 			continue;
 		}
 
-		$item_stock_max = '';
-		if ( $item_product->managing_stock() && ! $item_product->backorders_allowed() ) {
-			$item_stock_qty = $item_product->get_stock_quantity();
-			if ( is_numeric( $item_stock_qty ) && intval( $item_stock_qty ) > 0 ) {
-				$item_stock_max = intval( $item_stock_qty );
+		if ( $type_default_product ) {
+			foreach ( $prepared_options as $prepared_option ) {
+				if ( $prepared_option['available'] && $prepared_option['id'] === $type_default_product ) {
+					$selected_product_id = $prepared_option['id'];
+					break;
+				}
 			}
 		}
 
-		if ( $item_stock_max && $item_qty > $item_stock_max ) {
-			$item_qty = $item_stock_max;
+		if ( ! $selected_product_id ) {
+			foreach ( $prepared_options as $prepared_option ) {
+				if ( $prepared_option['available'] ) {
+					$selected_product_id = $prepared_option['id'];
+					break;
+				}
+			}
 		}
 
-		if ( $item_qty < 1 ) {
-			continue;
+		if ( $selected_product_id ) {
+			foreach ( $prepared_options as $prepared_option ) {
+				if ( $prepared_option['id'] === $selected_product_id ) {
+					$set_total += $prepared_option['total'];
+					break;
+				}
+			}
 		}
 
-		$item_name  = $item_product->get_title();
-		$item_price = floatval( wc_get_price_to_display( $item_product ) );
-		$item_total = $item_price * $item_qty;
-
-		$prepared_items[] = array(
-			'id'         => $item_id,
-			'name'       => $item_name,
-			'qty'        => $item_qty,
-			'price'      => $item_price,
-			'price_html' => $item_product->get_price_html(),
-			'total'      => $item_total,
-			'image'      => $item_product->get_image( $size ),
-			'stock_max'  => $item_stock_max,
+		$prepared_types[] = array(
+			'index'               => $set_type_index,
+			'name'                => '' !== $type_name ? $type_name : sprintf( __( 'Tipo %d', 'yith-woocommerce-frequently-bought-together' ), $set_type_index + 1 ),
+			'selected_product_id' => $selected_product_id,
+			'options'             => $prepared_options,
 		);
-		$set_total += $item_total;
 	}
 
-	if ( empty( $prepared_items ) ) {
+	if ( empty( $prepared_types ) ) {
 		continue;
 	}
 
 	if ( empty( $set_image ) ) {
-		$set_image = $prepared_items[0]['image'];
+		foreach ( $prepared_types as $prepared_type ) {
+			foreach ( $prepared_type['options'] as $prepared_option ) {
+				if ( $prepared_option['id'] === $prepared_type['selected_product_id'] ) {
+					$set_image = $prepared_option['image'];
+					break 2;
+				}
+			}
+		}
+		if ( empty( $set_image ) ) {
+			$set_image = $prepared_types[0]['options'][0]['image'];
+		}
 	}
 
 	$set_index = count( $prepared_sets );
@@ -112,7 +196,7 @@ foreach ( $categories as $category ) {
 		'name'  => '' !== $set_name ? $set_name : sprintf( __( 'Set %d', 'yith-woocommerce-frequently-bought-together' ), $set_index + 1 ),
 		'image' => $set_image,
 		'total' => $set_total,
-		'items' => $prepared_items,
+		'types' => $prepared_types,
 	);
 }
 
@@ -176,42 +260,66 @@ $total = 0;
 				<div class="yith-wfbt-set-template" data-set-index="<?php echo esc_attr( $prepared_set['index'] ); ?>">
 					<div class="yith-wfbt-category-options yith-wfbt-set-options" data-set-index="<?php echo esc_attr( $prepared_set['index'] ); ?>">
 						<button type="button" class="yith-wfbt-category-close yith-wfbt-set-close" aria-label="<?php echo esc_attr__( 'Close', 'yith-woocommerce-frequently-bought-together' ); ?>">X</button>
-						<div class="yith-wfbt-set-options-title"><?php echo esc_html__( 'Set contiene', 'yith-woocommerce-frequently-bought-together' ); ?></div>
-						<?php foreach ( $prepared_set['items'] as $prepared_item ) : ?>
-							<div
-								class="yith-wfbt-category-option yith-wfbt-set-item"
-								data-product-id="<?php echo esc_attr( $prepared_item['id'] ); ?>"
-								data-price="<?php echo esc_attr( $prepared_item['price'] ); ?>"
-								data-qty="<?php echo esc_attr( $prepared_item['qty'] ); ?>"
-								<?php echo $prepared_item['stock_max'] ? 'data-max="' . esc_attr( $prepared_item['stock_max'] ) . '"' : ''; ?>
-							>
-								<span class="yith-wfbt-option-image">
-									<?php echo $prepared_item['image']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-								</span>
-								<span class="yith-wfbt-option-details">
-									<span class="yith-wfbt-option-name"><?php echo esc_html( $prepared_item['name'] ); ?></span>
-									<span class="yith-wfbt-set-item-prices">
-										<span class="yith-wfbt-set-item-qty">
-											<?php
-											echo esc_html(
-												sprintf(
-													/* translators: %d quantity */
-													__( 'Cantidad: %d', 'yith-woocommerce-frequently-bought-together' ),
-													intval( $prepared_item['qty'] )
-												)
-											);
-											?>
+						<?php foreach ( $prepared_set['types'] as $prepared_type ) : ?>
+							<div class="yith-wfbt-set-type" data-type-index="<?php echo esc_attr( $prepared_type['index'] ); ?>">
+								<div class="yith-wfbt-set-type-title"><?php echo esc_html( $prepared_type['name'] ); ?></div>
+								<?php foreach ( $prepared_type['options'] as $prepared_option ) : ?>
+									<?php
+									$option_available = ! empty( $prepared_option['available'] );
+									$option_selected  = $option_available && $prepared_type['selected_product_id'] === $prepared_option['id'];
+									$option_classes   = 'yith-wfbt-category-option yith-wfbt-set-item yith-wfbt-type-option';
+									if ( $option_selected ) {
+										$option_classes .= ' is-selected';
+									}
+									if ( ! $option_available ) {
+										$option_classes .= ' is-out-of-stock';
+									}
+									?>
+									<div
+										class="<?php echo esc_attr( $option_classes ); ?>"
+										role="button"
+										tabindex="<?php echo esc_attr( $option_available ? '0' : '-1' ); ?>"
+										aria-disabled="<?php echo esc_attr( $option_available ? 'false' : 'true' ); ?>"
+										data-available="<?php echo esc_attr( $option_available ? '1' : '0' ); ?>"
+										data-product-id="<?php echo esc_attr( $prepared_option['id'] ); ?>"
+										data-price="<?php echo esc_attr( $prepared_option['price'] ); ?>"
+										data-qty="<?php echo esc_attr( $prepared_option['qty'] ); ?>"
+										<?php echo $prepared_option['stock_max'] ? 'data-max="' . esc_attr( $prepared_option['stock_max'] ) . '"' : ''; ?>
+									>
+										<span class="yith-wfbt-option-image">
+											<?php echo $prepared_option['image']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</span>
-										<span class="yith-wfbt-set-item-unit">
-											<?php esc_html_e( 'Unidad', 'yith-woocommerce-frequently-bought-together' ); ?>:
-											<?php echo $prepared_item['price_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+										<span class="yith-wfbt-option-details">
+											<span class="yith-wfbt-option-name">
+												<?php echo esc_html( $prepared_option['name'] ); ?>
+												<?php if ( ! $option_available ) : ?>
+													<span class="yith-wfbt-option-stock-note">(<?php esc_html_e( 'Sin stock', 'yith-woocommerce-frequently-bought-together' ); ?>)</span>
+												<?php endif; ?>
+											</span>
+											<span class="yith-wfbt-set-item-prices">
+												<span class="yith-wfbt-set-item-qty">
+													<?php
+													echo esc_html(
+														sprintf(
+															/* translators: %d quantity */
+															__( 'Cantidad: %d', 'yith-woocommerce-frequently-bought-together' ),
+															intval( $prepared_option['qty'] )
+														)
+													);
+													?>
+												</span>
+												<span class="yith-wfbt-set-item-unit">
+													<?php esc_html_e( 'Unidad', 'yith-woocommerce-frequently-bought-together' ); ?>:
+													<?php echo $prepared_option['price_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+												</span>
+												<span class="yith-wfbt-set-item-total">
+													<?php esc_html_e( 'Total', 'yith-woocommerce-frequently-bought-together' ); ?>:
+													<?php echo wc_price( $prepared_option['total'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+												</span>
+											</span>
 										</span>
-										<span class="yith-wfbt-set-item-total">
-											<?php esc_html_e( 'Total', 'yith-woocommerce-frequently-bought-together' ); ?>:
-											<?php echo wc_price( $prepared_item['total'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-										</span>
-									</span>
-								</span>
+									</div>
+								<?php endforeach; ?>
 							</div>
 						<?php endforeach; ?>
 					</div>
@@ -243,46 +351,118 @@ $total = 0;
 			var totalPriceSpan = container.querySelector(".yith-wfbt-total-block .total_price .woocommerce-Price-amount bdi");
 			var totalPriceData = container.querySelector(".yith-wfbt-total-block .total_price");
 			var activeSet = null;
+			var selectedOptionsBySet = {};
+
+			function readOptionData(optionNode) {
+				if (!optionNode || optionNode.getAttribute("data-available") !== "1") {
+					return null;
+				}
+				var productId = parseInt(optionNode.getAttribute("data-product-id"), 10);
+				var qty = parseInt(optionNode.getAttribute("data-qty"), 10);
+				var max = parseInt(optionNode.getAttribute("data-max"), 10);
+				var price = parseFloat(optionNode.getAttribute("data-price") || 0);
+
+				if (!productId) {
+					return null;
+				}
+				if (!qty || qty < 1) {
+					qty = 1;
+				}
+				if (max && max > 0 && qty > max) {
+					qty = max;
+				}
+				if (qty < 1) {
+					return null;
+				}
+
+				return {
+					productId: productId,
+					qty: qty,
+					price: price
+				};
+			}
+
+			function setOptionSelectedWithinType(typeNode, optionNode) {
+				if (!typeNode || !optionNode) {
+					return;
+				}
+				var options = typeNode.querySelectorAll(".yith-wfbt-type-option");
+				Array.prototype.forEach.call(options, function(node) {
+					node.classList.remove("is-selected");
+				});
+				optionNode.classList.add("is-selected");
+			}
 
 			function getSetTemplate(setIndex) {
 				return container.querySelector('.yith-wfbt-set-template[data-set-index="' + setIndex + '"]');
 			}
 
-			function getSetItemsData(setIndex) {
-				var template = getSetTemplate(setIndex);
-				if (!template) {
-					return [];
-				}
-
-				var itemNodes = template.querySelectorAll(".yith-wfbt-set-item");
-				var items = [];
-				Array.prototype.forEach.call(itemNodes, function(itemNode) {
-					var productId = parseInt(itemNode.getAttribute("data-product-id"), 10);
-					var qty = parseInt(itemNode.getAttribute("data-qty"), 10);
-					var max = parseInt(itemNode.getAttribute("data-max"), 10);
-					var price = parseFloat(itemNode.getAttribute("data-price") || 0);
-
-					if (!productId) {
+			function initializeSelections() {
+				selectedOptionsBySet = {};
+				var templates = container.querySelectorAll(".yith-wfbt-set-template");
+				Array.prototype.forEach.call(templates, function(template) {
+					var setIndex = template.getAttribute("data-set-index");
+					if (!setIndex) {
 						return;
 					}
-					if (!qty || qty < 1) {
-						qty = 1;
-					}
-					if (max && max > 0 && qty > max) {
-						qty = max;
-					}
-					if (qty < 1) {
-						return;
-					}
-
-					items.push({
-						productId: productId,
-						qty: qty,
-						price: price
+					var typeMap = {};
+					var typeNodes = template.querySelectorAll(".yith-wfbt-set-type");
+					Array.prototype.forEach.call(typeNodes, function(typeNode) {
+						var typeIndex = typeNode.getAttribute("data-type-index");
+						if (null === typeIndex) {
+							return;
+						}
+						var selectedNode = typeNode.querySelector('.yith-wfbt-type-option.is-selected[data-available="1"]');
+						if (!selectedNode) {
+							selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"]');
+						}
+						var optionData = readOptionData(selectedNode);
+						if (optionData) {
+							typeMap[typeIndex] = optionData;
+						}
 					});
+					selectedOptionsBySet[setIndex] = typeMap;
 				});
+			}
 
+			function getSetItemsData(setIndex) {
+				var typeMap = selectedOptionsBySet[setIndex] || {};
+				var items = [];
+				Object.keys(typeMap).forEach(function(typeIndex) {
+					if (typeMap[typeIndex]) {
+						items.push(typeMap[typeIndex]);
+					}
+				});
 				return items;
+			}
+
+			function applyPanelSelectionState(setIndex) {
+				if (!panel) {
+					return;
+				}
+				var typeMap = selectedOptionsBySet[setIndex] || {};
+				var typeNodes = panel.querySelectorAll(".yith-wfbt-set-type");
+				Array.prototype.forEach.call(typeNodes, function(typeNode) {
+					var typeIndex = typeNode.getAttribute("data-type-index");
+					var selectedData = typeMap[typeIndex];
+					var selectedNode = null;
+					if (selectedData && selectedData.productId) {
+						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-product-id="' + selectedData.productId + '"][data-available="1"]');
+					}
+					if (!selectedNode) {
+						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"]');
+						var fallbackData = readOptionData(selectedNode);
+						if (fallbackData) {
+							if (!selectedOptionsBySet[setIndex]) {
+								selectedOptionsBySet[setIndex] = {};
+							}
+							selectedOptionsBySet[setIndex][typeIndex] = fallbackData;
+						}
+					}
+					if (selectedNode) {
+						setOptionSelectedWithinType(typeNode, selectedNode);
+					}
+				});
 			}
 
 			function closeSetPanel() {
@@ -315,6 +495,7 @@ $total = 0;
 				closeSetPanel();
 				panel.innerHTML = template.innerHTML;
 				panel.hidden = false;
+				applyPanelSelectionState(setIndex);
 
 				activeSet = setNode;
 				activeSet.classList.add("is-open");
@@ -329,11 +510,25 @@ $total = 0;
 					return;
 				}
 
+				if (selected) {
+					clearSelectedSetsExcept(setNode);
+				}
+
 				setNode.classList.toggle("is-selected", !!selected);
 				var trigger = setNode.querySelector(".yith-wfbt-set-trigger");
 				if (trigger) {
 					trigger.setAttribute("aria-pressed", selected ? "true" : "false");
 				}
+			}
+
+			function clearSelectedSetsExcept(exceptNode) {
+				var selectedSets = container.querySelectorAll(".yith-wfbt-set.is-selected");
+				Array.prototype.forEach.call(selectedSets, function(node) {
+					if (exceptNode && node === exceptNode) {
+						return;
+					}
+					setSetSelected(node, false);
+				});
 			}
 
 			function syncHiddenProducts() {
@@ -412,6 +607,34 @@ $total = 0;
 					return;
 				}
 
+				var optionNode = event.target.closest(".yith-wfbt-type-option");
+				if (optionNode && panel && !panel.hidden && panel.contains(optionNode)) {
+					event.preventDefault();
+					if (optionNode.getAttribute("data-available") !== "1") {
+						return;
+					}
+					var typeNode = optionNode.closest(".yith-wfbt-set-type");
+					var setIndexForOption = activeSet ? activeSet.getAttribute("data-set-index") : "";
+					if (!typeNode || !setIndexForOption) {
+						return;
+					}
+					var typeIndex = typeNode.getAttribute("data-type-index");
+					if (null === typeIndex) {
+						return;
+					}
+					setOptionSelectedWithinType(typeNode, optionNode);
+					var optionData = readOptionData(optionNode);
+					if (!optionData) {
+						return;
+					}
+					if (!selectedOptionsBySet[setIndexForOption]) {
+						selectedOptionsBySet[setIndexForOption] = {};
+					}
+					selectedOptionsBySet[setIndexForOption][typeIndex] = optionData;
+					syncAll();
+					return;
+				}
+
 				var setTrigger = event.target.closest(".yith-wfbt-set-trigger");
 				if (!setTrigger) {
 					return;
@@ -424,19 +647,27 @@ $total = 0;
 				}
 
 				var isSelected = setNode.classList.contains("is-selected");
-				var isOpen = setNode.classList.contains("is-open");
 
 				if (!isSelected) {
 					setSetSelected(setNode, true);
 					openSetPanel(setNode);
-				} else if (isOpen) {
-					setSetSelected(setNode, false);
-					closeSetPanel();
 				} else {
 					openSetPanel(setNode);
 				}
 
 				syncAll();
+			});
+
+			container.addEventListener("keydown", function(event) {
+				if ("Enter" !== event.key && " " !== event.key) {
+					return;
+				}
+				var optionNode = event.target.closest(".yith-wfbt-type-option");
+				if (!optionNode) {
+					return;
+				}
+				event.preventDefault();
+				optionNode.click();
 			});
 
 			document.addEventListener("click", function(event) {
@@ -463,6 +694,7 @@ $total = 0;
 				syncHiddenProducts();
 			});
 
+			initializeSelections();
 			syncAll();
 		});
 	});
@@ -584,10 +816,17 @@ $total = 0;
 		overflow-y: auto;
 	}
 
-	.yith-wfbt-set-options-title {
+	.yith-wfbt-set-type {
+		margin-bottom: 12px;
+	}
+
+	.yith-wfbt-set-type:last-child {
+		margin-bottom: 0;
+	}
+
+	.yith-wfbt-set-type-title {
 		font-size: 14px;
 		font-weight: 600;
-		color: #222;
 		margin-bottom: 8px;
 	}
 
@@ -613,6 +852,33 @@ $total = 0;
 		border-radius: 6px;
 		padding: 8px;
 		margin-bottom: 8px;
+	}
+
+	.yith-wfbt-type-option {
+		cursor: pointer;
+		transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+	}
+
+	.yith-wfbt-type-option.is-selected {
+		border-color: #4b4f57;
+		box-shadow: inset 0 0 0 1px #4b4f57;
+		background: #f3f4f6;
+	}
+
+	.yith-wfbt-type-option.is-out-of-stock {
+		opacity: 0.62;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	.yith-wfbt-type-option.is-out-of-stock .yith-wfbt-option-name,
+	.yith-wfbt-type-option.is-out-of-stock .yith-wfbt-set-item-prices {
+		text-decoration: line-through;
+	}
+
+	.yith-wfbt-option-stock-note {
+		margin-left: 6px;
+		font-size: 12px;
 	}
 
 	.yith-wfbt-option-image img {
