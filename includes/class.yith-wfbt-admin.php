@@ -151,6 +151,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								'name'     => '',
 								'products' => array(),
 								'qty'      => array(),
+								'trigger_product_id' => 0,
 							),
 						),
 					),
@@ -186,6 +187,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							'name'     => '',
 							'products' => $legacy_products,
 							'qty'      => $legacy_qty,
+							'trigger_product_id' => 0,
 						);
 					}
 				}
@@ -194,6 +196,13 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				foreach ( $types as $type ) {
 					$type_name = isset( $type['name'] ) ? sanitize_text_field( $type['name'] ) : '';
 					$type_qty  = isset( $type['qty'] ) && is_array( $type['qty'] ) ? $type['qty'] : array();
+					$type_trigger_product = isset( $type['trigger_product_id'] ) ? $type['trigger_product_id'] : 0;
+					if ( is_array( $type_trigger_product ) ) {
+						$type_trigger_product = reset( $type_trigger_product );
+					}
+					$type_trigger_product_id = absint( $type_trigger_product );
+					$type_trigger_map = isset( $type['trigger'] ) && is_array( $type['trigger'] ) ? $type['trigger'] : array();
+					$type_trigger_extra_map = isset( $type['trigger_extra_qty'] ) && is_array( $type['trigger_extra_qty'] ) ? $type['trigger_extra_qty'] : array();
 
 					$type_products = isset( $type['products'] ) ? $type['products'] : array();
 					if ( is_string( $type_products ) ) {
@@ -207,15 +216,24 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					}
 
 					$type_qty_map = array();
+					$normalized_trigger_map = array();
+					$normalized_trigger_extra_map = array();
 					foreach ( $type_products as $type_product_id ) {
 						$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
-						$type_qty_map[ $type_product_id ] = max( 1, $qty );
+						$type_qty_map[ $type_product_id ] = max( 0, $qty );
+						$trigger_product_id = isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : 0;
+						$trigger_extra_qty = isset( $type_trigger_extra_map[ $type_product_id ] ) ? absint( $type_trigger_extra_map[ $type_product_id ] ) : 0;
+						$normalized_trigger_map[ $type_product_id ] = $trigger_product_id;
+						$normalized_trigger_extra_map[ $type_product_id ] = max( 0, $trigger_extra_qty );
 					}
 
 					$normalized_types[] = array(
 						'name'     => $type_name,
 						'products' => $type_products,
 						'qty'      => $type_qty_map,
+						'trigger_product_id' => $type_trigger_product_id,
+						'trigger'  => $normalized_trigger_map,
+						'trigger_extra_qty' => $normalized_trigger_extra_map,
 					);
 				}
 
@@ -224,6 +242,9 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 						'name'     => '',
 						'products' => array(),
 						'qty'      => array(),
+						'trigger_product_id' => 0,
+						'trigger'  => array(),
+						'trigger_extra_qty' => array(),
 					);
 				}
 
@@ -291,8 +312,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				</p>
 
 				<input type="hidden" class="yith-wfbt2-type-qty-map-data" value="{}"/>
+				<input type="hidden" class="yith-wfbt2-type-trigger-map-data" value="{}"/>
+				<input type="hidden" class="yith-wfbt2-type-trigger-extra-map-data" value="{}"/>
 				<div class="yith-wfbt2-type-qty-wrapper">
 					<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Set Trigger product to link this product with another type. If Trigger extra qty is 0, the product is shown only when trigger matches. If Trigger extra qty is greater than 0, that amount is added when trigger matches.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
 					<div class="yith-wfbt2-type-qty-list"></div>
 				</div>
 
@@ -396,6 +420,8 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 												$type_name     = isset( $type_data['name'] ) ? $type_data['name'] : '';
 												$type_products = isset( $type_data['products'] ) ? array_filter( array_map( 'absint', (array) $type_data['products'] ) ) : array();
 												$type_qty_map  = isset( $type_data['qty'] ) && is_array( $type_data['qty'] ) ? $type_data['qty'] : array();
+												$type_trigger_map = isset( $type_data['trigger'] ) && is_array( $type_data['trigger'] ) ? $type_data['trigger'] : array();
+												$type_trigger_extra_map = isset( $type_data['trigger_extra_qty'] ) && is_array( $type_data['trigger_extra_qty'] ) ? $type_data['trigger_extra_qty'] : array();
 
 												$type_json_ids = array();
 												foreach ( $type_products as $type_product_id ) {
@@ -433,8 +459,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 													</p>
 
 													<input type="hidden" class="yith-wfbt2-type-qty-map-data" value="<?php echo esc_attr( wp_json_encode( $type_qty_map ) ); ?>"/>
+													<input type="hidden" class="yith-wfbt2-type-trigger-map-data" value="<?php echo esc_attr( wp_json_encode( $type_trigger_map ) ); ?>"/>
+													<input type="hidden" class="yith-wfbt2-type-trigger-extra-map-data" value="<?php echo esc_attr( wp_json_encode( $type_trigger_extra_map ) ); ?>"/>
 													<div class="yith-wfbt2-type-qty-wrapper">
 														<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<p class="description"><?php esc_html_e( 'Set Trigger product to link this product with another type. If Trigger extra qty is 0, the product is shown only when trigger matches. If Trigger extra qty is greater than 0, that amount is added when trigger matches.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
 														<div class="yith-wfbt2-type-qty-list"></div>
 													</div>
 
@@ -497,14 +526,25 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							});
 						}
 
-						function getStoredQtyMap($typeBox) {
-							var raw = $typeBox.find(".yith-wfbt2-type-qty-map-data").val() || "{}";
+						function parseJsonMap(raw) {
 							try {
-								var parsed = JSON.parse(raw);
+								var parsed = JSON.parse(raw || "{}");
 								return parsed && typeof parsed === "object" ? parsed : {};
 							} catch (error) {
 								return {};
 							}
+						}
+
+						function getStoredQtyMap($typeBox) {
+							return parseJsonMap($typeBox.find(".yith-wfbt2-type-qty-map-data").val());
+						}
+
+						function getStoredTriggerMap($typeBox) {
+							return parseJsonMap($typeBox.find(".yith-wfbt2-type-trigger-map-data").val());
+						}
+
+						function getStoredTriggerExtraMap($typeBox) {
+							return parseJsonMap($typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val());
 						}
 
 						function collectQtyMap($typeBox) {
@@ -512,47 +552,157 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$typeBox.find(".yith-wfbt2-type-qty-input").each(function() {
 								var productId = String($(this).data("productId"));
 								var qty = parseInt($(this).val(), 10);
-								map[productId] = qty && qty > 0 ? qty : 1;
+								map[productId] = qty >= 0 ? qty : 0;
 							});
 							return map;
 						}
 
-						function syncTypeQtyRows($typeBox) {
+						function collectTriggerMap($typeBox) {
+							var map = getStoredTriggerMap($typeBox);
+							$typeBox.find(".yith-wfbt2-type-trigger-input").each(function() {
+								var productId = String($(this).data("productId"));
+								var triggerProductId = parseInt($(this).val(), 10);
+								map[productId] = triggerProductId > 0 ? triggerProductId : 0;
+							});
+							return map;
+						}
+
+						function collectTriggerExtraMap($typeBox) {
+							var map = getStoredTriggerExtraMap($typeBox);
+							$typeBox.find(".yith-wfbt2-type-trigger-extra-input").each(function() {
+								var productId = String($(this).data("productId"));
+								var triggerExtraQty = parseInt($(this).val(), 10);
+								map[productId] = triggerExtraQty >= 0 ? triggerExtraQty : 0;
+							});
+							return map;
+						}
+
+						function escapeHtml(value) {
+							return String(value || "")
+								.replace(/&/g, "&amp;")
+								.replace(/</g, "&lt;")
+								.replace(/>/g, "&gt;")
+								.replace(/"/g, "&quot;")
+								.replace(/'/g, "&#039;");
+						}
+
+						function getSetProductChoices($setBox) {
+							var choices = {};
+							if (!$setBox || !$setBox.length) {
+								return choices;
+							}
+							$setBox.find(".yith-wfbt2-type-products option:selected").each(function() {
+								var productId = String($(this).val() || "");
+								if (!productId || choices[productId]) {
+									return;
+								}
+								var label = $.trim($(this).text()) || ("#" + productId);
+								choices[productId] = label;
+							});
+							return choices;
+						}
+
+						function buildTriggerSelectHtml(setChoices, selectedTriggerId, setIndex, typeIndex, productId) {
+							var fieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][trigger][" + productId + "]";
+							var html = '' +
+								'<select class="yith-wfbt2-type-trigger-input" data-product-id="' + productId + '" name="' + fieldName + '">' +
+									'<option value="">-</option>';
+							Object.keys(setChoices).forEach(function(choiceId) {
+								var selected = String(choiceId) === String(selectedTriggerId) ? ' selected="selected"' : '';
+								html += '<option value="' + choiceId + '"' + selected + '>' + escapeHtml(setChoices[choiceId]) + '</option>';
+							});
+							html += '</select>';
+							return html;
+						}
+
+						function syncTypeQtyRows($typeBox, providedSetChoices) {
 							var $select = $typeBox.find(".yith-wfbt2-type-products");
 							if (!$select.length) {
 								return;
 							}
-							var map = collectQtyMap($typeBox);
+
+							var $setBox = $typeBox.closest(".yith-wfbt2-category-box");
+							var setChoices = providedSetChoices || getSetProductChoices($setBox);
+							var qtyMap = collectQtyMap($typeBox);
+							var triggerMap = collectTriggerMap($typeBox);
+							var triggerExtraMap = collectTriggerExtraMap($typeBox);
 							var setIndex = $typeBox.data("setIndex");
 							var typeIndex = $typeBox.data("typeIndex");
 							var selectedIds = [];
 							$select.find("option:selected").each(function() {
 								selectedIds.push(String($(this).val()));
 							});
+
 							var $list = $typeBox.find(".yith-wfbt2-type-qty-list");
 							$list.empty();
 							if (!selectedIds.length) {
 								$list.append('<p class="description yith-wfbt2-type-qty-empty"><?php echo esc_js( __( 'Select products to define quantities.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
 								$typeBox.find(".yith-wfbt2-type-qty-map-data").val("{}");
+								$typeBox.find(".yith-wfbt2-type-trigger-map-data").val("{}");
+								$typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val("{}");
 								return;
 							}
-							var normalizedMap = {};
+
+							var normalizedQtyMap = {};
+							var normalizedTriggerMap = {};
+							var normalizedTriggerExtraMap = {};
+
 							selectedIds.forEach(function(productId) {
 								var label = $.trim($select.find('option[value="' + productId + '"]').text()) || ("#" + productId);
-								var qty = parseInt(map[productId], 10);
-								if (!qty || qty < 1) {
-									qty = 1;
+								var qty = parseInt(qtyMap[productId], 10);
+								if (isNaN(qty) || qty < 0) {
+									qty = 0;
 								}
-								normalizedMap[productId] = qty;
+
+								var triggerProductId = parseInt(triggerMap[productId], 10);
+								if (!triggerProductId || !setChoices[String(triggerProductId)]) {
+									triggerProductId = 0;
+								}
+
+								var triggerExtraQty = parseInt(triggerExtraMap[productId], 10);
+								if (isNaN(triggerExtraQty) || triggerExtraQty < 0) {
+									triggerExtraQty = 0;
+								}
+
+								normalizedQtyMap[productId] = qty;
+								normalizedTriggerMap[productId] = triggerProductId;
+								normalizedTriggerExtraMap[productId] = triggerExtraQty;
+
+								var qtyFieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][qty][" + productId + "]";
+								var triggerExtraFieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][trigger_extra_qty][" + productId + "]";
+
 								var rowHtml = '' +
 									'<div class="yith-wfbt2-type-qty-row">' +
-										'<span class="yith-wfbt2-type-qty-name">' + label + '</span>' +
-										'<input type="number" min="1" class="yith-wfbt2-type-qty-input" data-product-id="' + productId + '" ' +
-										'name="yith_wfbt2_categories[' + setIndex + '][types][' + typeIndex + '][qty][' + productId + ']" value="' + qty + '" />' +
+										'<span class="yith-wfbt2-type-qty-name">' + escapeHtml(label) + '</span>' +
+										'<span class="yith-wfbt2-type-qty-field">' +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Qty', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											'<input type="number" min="0" class="yith-wfbt2-type-qty-input" data-product-id="' + productId + '" name="' + qtyFieldName + '" value="' + qty + '" />' +
+										'</span>' +
+										'<span class="yith-wfbt2-type-qty-field yith-wfbt2-type-trigger-field">' +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Trigger product', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											buildTriggerSelectHtml(setChoices, triggerProductId, setIndex, typeIndex, productId) +
+										'</span>' +
+										'<span class="yith-wfbt2-type-qty-field">' +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Trigger extra qty', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											'<input type="number" min="0" class="yith-wfbt2-type-trigger-extra-input" data-product-id="' + productId + '" name="' + triggerExtraFieldName + '" value="' + triggerExtraQty + '" />' +
+										'</span>' +
 									'</div>';
 								$list.append(rowHtml);
 							});
-							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(normalizedMap));
+
+							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(normalizedQtyMap));
+							$typeBox.find(".yith-wfbt2-type-trigger-map-data").val(JSON.stringify(normalizedTriggerMap));
+							$typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val(JSON.stringify(normalizedTriggerExtraMap));
+						}
+
+						function syncSetTypeRows($setBox) {
+							if (!$setBox || !$setBox.length) {
+								return;
+							}
+							var setChoices = getSetProductChoices($setBox);
+							$setBox.find(".yith-wfbt2-type-box").each(function() {
+								syncTypeQtyRows($(this), setChoices);
+							});
 						}
 
 						function initTypeBox($typeBox) {
@@ -560,7 +710,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							if ($select.length) {
 								reorderSelect2Options($select);
 							}
-							syncTypeQtyRows($typeBox);
+							syncSetTypeRows($typeBox.closest(".yith-wfbt2-category-box"));
 						}
 
 						function buildTypeHtml(setIndex, typeIndex) {
@@ -587,6 +737,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$(document.body).trigger("wc-enhanced-select-init");
 							setTimeout(function() {
 								initTypeBox($newType);
+								syncSetTypeRows($setBox);
 							}, 0);
 						}
 
@@ -602,6 +753,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$types.each(function() {
 								initTypeBox($(this));
 							});
+							syncSetTypeRows($setBox);
 						}
 
 						function toggleMode() {
@@ -653,24 +805,42 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$(this).closest(".yith-wfbt2-type-box").remove();
 							if (!$setBox.find(".yith-wfbt2-type-box").length) {
 								addTypeToSet($setBox);
+								return;
 							}
+							syncSetTypeRows($setBox);
 						});
 
 						$(document).on("change", ".yith-wfbt2-type-products", function() {
 							var $select = $(this);
 							reorderSelect2Options($select);
-							syncTypeQtyRows($select.closest(".yith-wfbt2-type-box"));
+							syncSetTypeRows($select.closest(".yith-wfbt2-category-box"));
 						});
 
 						$(document).on("change", ".yith-wfbt2-type-qty-input", function() {
 							var value = parseInt($(this).val(), 10);
-							if (!value || value < 1) {
-								value = 1;
+							if (isNaN(value) || value < 0) {
+								value = 0;
 								$(this).val(value);
 							}
 							var $typeBox = $(this).closest(".yith-wfbt2-type-box");
-							var map = collectQtyMap($typeBox);
-							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(map));
+							$typeBox.find(".yith-wfbt2-type-qty-map-data").val(JSON.stringify(collectQtyMap($typeBox)));
+							$typeBox.find(".yith-wfbt2-type-trigger-map-data").val(JSON.stringify(collectTriggerMap($typeBox)));
+							$typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val(JSON.stringify(collectTriggerExtraMap($typeBox)));
+						});
+
+						$(document).on("change", ".yith-wfbt2-type-trigger-input", function() {
+							var $typeBox = $(this).closest(".yith-wfbt2-type-box");
+							$typeBox.find(".yith-wfbt2-type-trigger-map-data").val(JSON.stringify(collectTriggerMap($typeBox)));
+						});
+
+						$(document).on("change", ".yith-wfbt2-type-trigger-extra-input", function() {
+							var value = parseInt($(this).val(), 10);
+							if (isNaN(value) || value < 0) {
+								value = 0;
+								$(this).val(value);
+							}
+							var $typeBox = $(this).closest(".yith-wfbt2-type-box");
+							$typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val(JSON.stringify(collectTriggerExtraMap($typeBox)));
 						});
 
 						$(document).on("click", ".yith-wfbt2-upload-image", function(event) {
@@ -717,9 +887,12 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					.yith-wfbt2-set-image-preview { display: inline-flex; vertical-align: middle; margin-right: 8px; min-width: 56px; min-height: 56px; align-items: center; justify-content: center; border: 1px solid #e5e5e5; background: #fff; }
 					.yith-wfbt2-set-image-preview img { max-width: 56px; height: auto; display: block; }
 					.yith-wfbt2-type-qty-wrapper { margin: 12px 0; }
-					.yith-wfbt2-type-qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-					.yith-wfbt2-type-qty-name { flex: 1 1 auto; }
-					.yith-wfbt2-type-qty-input { width: 90px; }
+					.yith-wfbt2-type-qty-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin-bottom: 8px; padding: 8px; border: 1px solid #ececec; background: #fff; }
+					.yith-wfbt2-type-qty-name { flex: 1 1 100%; font-weight: 600; }
+					.yith-wfbt2-type-qty-field { display: inline-flex; flex-direction: column; gap: 4px; min-width: 120px; }
+					.yith-wfbt2-type-qty-field-label { font-size: 12px; color: #666; }
+					.yith-wfbt2-type-qty-input, .yith-wfbt2-type-trigger-extra-input { width: 110px; }
+					.yith-wfbt2-type-trigger-input { min-width: 210px; max-width: 280px; }
 				</style>
 			</div>
 			<?php
@@ -872,6 +1045,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 									'name'     => '',
 									'products' => $legacy_products,
 									'qty'      => isset( $category['qty'] ) && is_array( $category['qty'] ) ? $category['qty'] : array(),
+									'trigger_product_id' => 0,
 								);
 							}
 						}
@@ -883,6 +1057,17 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 						foreach ( $raw_types as $raw_type ) {
 							$type_name = isset( $raw_type['name'] ) ? sanitize_text_field( $raw_type['name'] ) : '';
 							$type_qty  = isset( $raw_type['qty'] ) && is_array( $raw_type['qty'] ) ? $raw_type['qty'] : array();
+							$type_trigger_product_id = 0;
+							$type_trigger = isset( $raw_type['trigger'] ) && is_array( $raw_type['trigger'] ) ? $raw_type['trigger'] : array();
+							$type_trigger_extra_qty = isset( $raw_type['trigger_extra_qty'] ) && is_array( $raw_type['trigger_extra_qty'] ) ? $raw_type['trigger_extra_qty'] : array();
+
+							if ( isset( $raw_type['trigger_product_id'] ) ) {
+								$raw_trigger_product = $raw_type['trigger_product_id'];
+								if ( is_array( $raw_trigger_product ) ) {
+									$raw_trigger_product = reset( $raw_trigger_product );
+								}
+								$type_trigger_product_id = absint( sanitize_text_field( (string) $raw_trigger_product ) );
+							}
 
 							$type_products = isset( $raw_type['products'] ) ? $raw_type['products'] : array();
 							if ( ! is_array( $type_products ) ) {
@@ -892,14 +1077,24 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							$type_products = array_values( array_unique( $type_products ) );
 
 							$type_qty_map = array();
+							$type_trigger_map = array();
+							$type_trigger_extra_map = array();
 							foreach ( $type_products as $type_product_id ) {
 								$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
-								$qty = max( 1, $qty );
+								$qty = max( 0, $qty );
 								$type_qty_map[ $type_product_id ] = $qty;
+
+								$trigger_product_id = isset( $type_trigger[ $type_product_id ] ) ? absint( $type_trigger[ $type_product_id ] ) : 0;
+								$trigger_extra_qty_for_product = isset( $type_trigger_extra_qty[ $type_product_id ] ) ? absint( $type_trigger_extra_qty[ $type_product_id ] ) : 0;
+								$trigger_extra_qty_for_product = max( 0, $trigger_extra_qty_for_product );
+								$type_trigger_map[ $type_product_id ] = $trigger_product_id;
+								$type_trigger_extra_map[ $type_product_id ] = $trigger_extra_qty_for_product;
 
 								if ( ! in_array( $type_product_id, $flat_product_ids, true ) ) {
 									$flat_product_ids[] = $type_product_id;
-									$flat_qty_map[ $type_product_id ] = $qty;
+									$flat_qty_map[ $type_product_id ] = $qty + $trigger_extra_qty_for_product;
+								} else {
+									$flat_qty_map[ $type_product_id ] = max( $flat_qty_map[ $type_product_id ], $qty + $trigger_extra_qty_for_product );
 								}
 							}
 
@@ -911,6 +1106,9 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								'name'     => $type_name,
 								'products' => $type_products,
 								'qty'      => $type_qty_map,
+								'trigger_product_id' => $type_trigger_product_id,
+								'trigger'  => $type_trigger_map,
+								'trigger_extra_qty' => $type_trigger_extra_map,
 							);
 						}
 
@@ -918,7 +1116,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 						foreach ( $flat_product_ids as $flat_product_id ) {
 							$items[] = array(
 								'product_id' => $flat_product_id,
-								'qty'        => isset( $flat_qty_map[ $flat_product_id ] ) ? max( 1, absint( $flat_qty_map[ $flat_product_id ] ) ) : 1,
+								'qty'        => isset( $flat_qty_map[ $flat_product_id ] ) ? max( 0, absint( $flat_qty_map[ $flat_product_id ] ) ) : 0,
 							);
 						}
 

@@ -43,6 +43,7 @@ foreach ( $categories as $category ) {
 			$set_types[] = array(
 				'name'              => '',
 				'default_product_id' => 0,
+				'trigger_product_id' => 0,
 				'options'           => $legacy_items,
 			);
 		}
@@ -58,12 +59,20 @@ foreach ( $categories as $category ) {
 	foreach ( $set_types as $set_type_index => $set_type ) {
 		$type_name            = isset( $set_type['name'] ) ? trim( $set_type['name'] ) : '';
 		$type_default_product = isset( $set_type['default_product_id'] ) ? absint( $set_type['default_product_id'] ) : 0;
+		$type_trigger_product = isset( $set_type['trigger_product_id'] ) ? $set_type['trigger_product_id'] : 0;
+		if ( is_array( $type_trigger_product ) ) {
+			$type_trigger_product = reset( $type_trigger_product );
+		}
+		$type_trigger_product = absint( $type_trigger_product );
+		$type_conditional_mode = ! empty( $set_type['conditional_mode'] );
 		$type_options_raw     = isset( $set_type['options'] ) && is_array( $set_type['options'] ) ? $set_type['options'] : array();
 		$prepared_options     = array();
 		$selected_product_id  = 0;
 
 		if ( empty( $type_options_raw ) && isset( $set_type['products'] ) ) {
 			$type_qty_map = isset( $set_type['qty'] ) && is_array( $set_type['qty'] ) ? $set_type['qty'] : array();
+			$type_trigger_map = isset( $set_type['trigger'] ) && is_array( $set_type['trigger'] ) ? $set_type['trigger'] : array();
+			$type_trigger_extra_map = isset( $set_type['trigger_extra_qty'] ) && is_array( $set_type['trigger_extra_qty'] ) ? $set_type['trigger_extra_qty'] : array();
 			$type_products = $set_type['products'];
 			if ( is_string( $type_products ) ) {
 				$type_products = explode( ',', $type_products );
@@ -72,7 +81,9 @@ foreach ( $categories as $category ) {
 			foreach ( $type_products as $type_product_id ) {
 				$type_options_raw[] = array(
 					'product_id' => $type_product_id,
-					'qty'        => isset( $type_qty_map[ $type_product_id ] ) ? max( 1, absint( $type_qty_map[ $type_product_id ] ) ) : 1,
+					'qty'        => isset( $type_qty_map[ $type_product_id ] ) ? max( 0, absint( $type_qty_map[ $type_product_id ] ) ) : 1,
+					'trigger_product_id' => isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : 0,
+					'trigger_extra_qty'  => isset( $type_trigger_extra_map[ $type_product_id ] ) ? max( 0, absint( $type_trigger_extra_map[ $type_product_id ] ) ) : 0,
 				);
 			}
 		}
@@ -82,6 +93,8 @@ foreach ( $categories as $category ) {
 			$option_id      = 0;
 			$option_qty     = 1;
 			$option_avail   = false;
+			$option_trigger_product = 0;
+			$option_trigger_extra   = 0;
 
 			if ( is_array( $type_option ) && isset( $type_option['product'] ) && is_object( $type_option['product'] ) ) {
 				$option_product = $type_option['product'];
@@ -97,8 +110,10 @@ foreach ( $categories as $category ) {
 				continue;
 			}
 
-			$option_qty = isset( $type_option['qty'] ) ? max( 1, absint( $type_option['qty'] ) ) : 1;
+			$option_qty = isset( $type_option['qty'] ) ? max( 0, absint( $type_option['qty'] ) ) : 1;
 			$option_avail = isset( $type_option['available'] ) ? (bool) $type_option['available'] : ( $option_product->is_purchasable() && $option_product->is_in_stock() );
+			$option_trigger_product = isset( $type_option['trigger_product_id'] ) ? absint( $type_option['trigger_product_id'] ) : 0;
+			$option_trigger_extra = isset( $type_option['trigger_extra_qty'] ) ? max( 0, absint( $type_option['trigger_extra_qty'] ) ) : 0;
 
 			$option_stock_max = '';
 			if ( $option_product->managing_stock() && ! $option_product->backorders_allowed() ) {
@@ -110,10 +125,6 @@ foreach ( $categories as $category ) {
 
 			if ( $option_stock_max && $option_qty > $option_stock_max ) {
 				$option_qty = $option_stock_max;
-			}
-
-			if ( $option_qty < 1 ) {
-				$option_avail = false;
 			}
 
 			$option_name  = $option_product->get_title();
@@ -130,36 +141,44 @@ foreach ( $categories as $category ) {
 				'image'      => $option_product->get_image( $size ),
 				'stock_max'  => $option_stock_max,
 				'available'  => $option_avail,
+				'trigger_product_id' => $option_trigger_product,
+				'trigger_extra_qty'  => $option_trigger_extra,
 			);
+
+			if ( $option_trigger_product || $option_trigger_extra || $option_qty < 1 ) {
+				$type_conditional_mode = true;
+			}
 		}
 
 		if ( empty( $prepared_options ) ) {
 			continue;
 		}
 
-		if ( $type_default_product ) {
-			foreach ( $prepared_options as $prepared_option ) {
-				if ( $prepared_option['available'] && $prepared_option['id'] === $type_default_product ) {
-					$selected_product_id = $prepared_option['id'];
-					break;
+		if ( ! $type_conditional_mode ) {
+			if ( $type_default_product ) {
+				foreach ( $prepared_options as $prepared_option ) {
+					if ( $prepared_option['available'] && $prepared_option['id'] === $type_default_product ) {
+						$selected_product_id = $prepared_option['id'];
+						break;
+					}
 				}
 			}
-		}
 
-		if ( ! $selected_product_id ) {
-			foreach ( $prepared_options as $prepared_option ) {
-				if ( $prepared_option['available'] ) {
-					$selected_product_id = $prepared_option['id'];
-					break;
+			if ( ! $selected_product_id ) {
+				foreach ( $prepared_options as $prepared_option ) {
+					if ( $prepared_option['available'] ) {
+						$selected_product_id = $prepared_option['id'];
+						break;
+					}
 				}
 			}
-		}
 
-		if ( $selected_product_id ) {
-			foreach ( $prepared_options as $prepared_option ) {
-				if ( $prepared_option['id'] === $selected_product_id ) {
-					$set_total += $prepared_option['total'];
-					break;
+			if ( $selected_product_id ) {
+				foreach ( $prepared_options as $prepared_option ) {
+					if ( $prepared_option['id'] === $selected_product_id ) {
+						$set_total += $prepared_option['total'];
+						break;
+					}
 				}
 			}
 		}
@@ -168,6 +187,8 @@ foreach ( $categories as $category ) {
 			'index'               => $set_type_index,
 			'name'                => '' !== $type_name ? $type_name : sprintf( __( 'Tipo %d', 'yith-woocommerce-frequently-bought-together' ), $set_type_index + 1 ),
 			'selected_product_id' => $selected_product_id,
+			'trigger_product_id'  => $type_trigger_product,
+			'conditional_mode'    => $type_conditional_mode,
 			'options'             => $prepared_options,
 		);
 	}
@@ -261,15 +282,24 @@ $total = 0;
 					<div class="yith-wfbt-category-options yith-wfbt-set-options" data-set-index="<?php echo esc_attr( $prepared_set['index'] ); ?>">
 						<button type="button" class="yith-wfbt-category-close yith-wfbt-set-close" aria-label="<?php echo esc_attr__( 'Close', 'yith-woocommerce-frequently-bought-together' ); ?>">X</button>
 						<?php foreach ( $prepared_set['types'] as $prepared_type ) : ?>
-							<div class="yith-wfbt-set-type" data-type-index="<?php echo esc_attr( $prepared_type['index'] ); ?>">
+							<div
+								class="yith-wfbt-set-type"
+								data-type-index="<?php echo esc_attr( $prepared_type['index'] ); ?>"
+								data-trigger-product-id="<?php echo esc_attr( isset( $prepared_type['trigger_product_id'] ) ? absint( $prepared_type['trigger_product_id'] ) : 0 ); ?>"
+								data-conditional-mode="<?php echo esc_attr( ! empty( $prepared_type['conditional_mode'] ) ? '1' : '0' ); ?>"
+							>
 								<div class="yith-wfbt-set-type-title"><?php echo esc_html( $prepared_type['name'] ); ?></div>
 								<?php foreach ( $prepared_type['options'] as $prepared_option ) : ?>
 									<?php
+									$type_conditional_mode = ! empty( $prepared_type['conditional_mode'] );
 									$option_available = ! empty( $prepared_option['available'] );
-									$option_selected  = $option_available && $prepared_type['selected_product_id'] === $prepared_option['id'];
+									$option_selected  = ! $type_conditional_mode && $option_available && $prepared_type['selected_product_id'] === $prepared_option['id'];
 									$option_classes   = 'yith-wfbt-category-option yith-wfbt-set-item yith-wfbt-type-option';
 									if ( $option_selected ) {
 										$option_classes .= ' is-selected';
+									}
+									if ( $type_conditional_mode ) {
+										$option_classes .= ' is-auto';
 									}
 									if ( ! $option_available ) {
 										$option_classes .= ' is-out-of-stock';
@@ -278,12 +308,15 @@ $total = 0;
 									<div
 										class="<?php echo esc_attr( $option_classes ); ?>"
 										role="button"
-										tabindex="<?php echo esc_attr( $option_available ? '0' : '-1' ); ?>"
-										aria-disabled="<?php echo esc_attr( $option_available ? 'false' : 'true' ); ?>"
+										tabindex="<?php echo esc_attr( ( $option_available && ! $type_conditional_mode ) ? '0' : '-1' ); ?>"
+										aria-disabled="<?php echo esc_attr( ( $option_available && ! $type_conditional_mode ) ? 'false' : 'true' ); ?>"
 										data-available="<?php echo esc_attr( $option_available ? '1' : '0' ); ?>"
+										data-selectable="<?php echo esc_attr( $type_conditional_mode ? '0' : '1' ); ?>"
 										data-product-id="<?php echo esc_attr( $prepared_option['id'] ); ?>"
 										data-price="<?php echo esc_attr( $prepared_option['price'] ); ?>"
 										data-qty="<?php echo esc_attr( $prepared_option['qty'] ); ?>"
+										data-trigger-product-id="<?php echo esc_attr( isset( $prepared_option['trigger_product_id'] ) ? absint( $prepared_option['trigger_product_id'] ) : 0 ); ?>"
+										data-trigger-extra-qty="<?php echo esc_attr( isset( $prepared_option['trigger_extra_qty'] ) ? absint( $prepared_option['trigger_extra_qty'] ) : 0 ); ?>"
 										<?php echo $prepared_option['stock_max'] ? 'data-max="' . esc_attr( $prepared_option['stock_max'] ) . '"' : ''; ?>
 									>
 										<span class="yith-wfbt-option-image">
@@ -361,25 +394,114 @@ $total = 0;
 				var qty = parseInt(optionNode.getAttribute("data-qty"), 10);
 				var max = parseInt(optionNode.getAttribute("data-max"), 10);
 				var price = parseFloat(optionNode.getAttribute("data-price") || 0);
+				var triggerProductId = parseInt(optionNode.getAttribute("data-trigger-product-id"), 10);
+				var triggerExtraQty = parseInt(optionNode.getAttribute("data-trigger-extra-qty"), 10);
+				var selectable = optionNode.getAttribute("data-selectable") === "1";
 
 				if (!productId) {
 					return null;
 				}
-				if (!qty || qty < 1) {
-					qty = 1;
+				if (isNaN(qty) || qty < 0) {
+					qty = 0;
 				}
 				if (max && max > 0 && qty > max) {
 					qty = max;
 				}
-				if (qty < 1) {
-					return null;
+				if (isNaN(triggerProductId) || triggerProductId < 0) {
+					triggerProductId = 0;
+				}
+				if (isNaN(triggerExtraQty) || triggerExtraQty < 0) {
+					triggerExtraQty = 0;
 				}
 
 				return {
 					productId: productId,
 					qty: qty,
-					price: price
+					max: max,
+					price: price,
+					triggerProductId: triggerProductId,
+					triggerExtraQty: triggerExtraQty,
+					selectable: selectable
 				};
+			}
+
+			function getSelectedProductIdsForSet(setIndex) {
+				var ids = [];
+				var typeMap = selectedOptionsBySet[setIndex] || {};
+				Object.keys(typeMap).forEach(function(typeIndex) {
+					if (!typeMap[typeIndex] || !typeMap[typeIndex].productId) {
+						return;
+					}
+					var productId = parseInt(typeMap[typeIndex].productId, 10);
+					if (!productId || ids.indexOf(productId) !== -1) {
+						return;
+					}
+					ids.push(productId);
+				});
+				return ids;
+			}
+
+			function getEffectiveOptionQty(optionData, selectedProductIds) {
+				if (!optionData) {
+					return 0;
+				}
+
+				var qty = optionData.qty;
+				var triggerProductId = optionData.triggerProductId || 0;
+				var triggerExtraQty = optionData.triggerExtraQty || 0;
+				var triggerMatched = !triggerProductId || selectedProductIds.indexOf(triggerProductId) !== -1;
+
+				if (triggerProductId) {
+					if (triggerExtraQty > 0) {
+						qty = triggerMatched ? qty + triggerExtraQty : qty;
+					} else {
+						qty = triggerMatched ? qty : 0;
+					}
+				}
+
+				if (optionData.max && optionData.max > 0 && qty > optionData.max) {
+					qty = optionData.max;
+				}
+				if (qty < 0) {
+					qty = 0;
+				}
+
+				return qty;
+			}
+
+			function updateConditionalOptionDisplay(optionNode, effectiveQty, optionData) {
+				if (!optionNode) {
+					return;
+				}
+
+				var visible = !!(optionData && effectiveQty > 0);
+				optionNode.classList.toggle("is-hidden-by-condition", !visible);
+				if (!visible) {
+					return;
+				}
+
+				var qtyNode = optionNode.querySelector(".yith-wfbt-set-item-qty");
+				if (qtyNode) {
+					var qtyLabel = qtyNode.getAttribute("data-label");
+					if (!qtyLabel) {
+						qtyLabel = (qtyNode.textContent.split(":")[0] || "Cantidad").trim();
+						qtyNode.setAttribute("data-label", qtyLabel);
+					}
+					qtyNode.textContent = qtyLabel + ": " + effectiveQty;
+				}
+
+				var totalNode = optionNode.querySelector(".yith-wfbt-set-item-total");
+				if (totalNode) {
+					var totalLabel = totalNode.getAttribute("data-label");
+					if (!totalLabel) {
+						totalLabel = (totalNode.textContent.split(":")[0] || "Total").trim();
+						totalNode.setAttribute("data-label", totalLabel);
+					}
+					var currencySymbolNode = totalPriceSpan ? totalPriceSpan.querySelector(".woocommerce-Price-currencySymbol") : null;
+					var symbolText = currencySymbolNode ? currencySymbolNode.textContent : "$";
+					var totalValue = optionData.price * effectiveQty;
+					totalNode.innerHTML = totalLabel + ': <span class="woocommerce-Price-currencySymbol">' + symbolText + "</span>" + formatPrice(totalValue);
+				}
 			}
 
 			function setOptionSelectedWithinType(typeNode, optionNode) {
@@ -412,9 +534,13 @@ $total = 0;
 						if (null === typeIndex) {
 							return;
 						}
-						var selectedNode = typeNode.querySelector('.yith-wfbt-type-option.is-selected[data-available="1"]');
+						if (typeNode.getAttribute("data-conditional-mode") === "1") {
+							return;
+						}
+
+						var selectedNode = typeNode.querySelector('.yith-wfbt-type-option.is-selected[data-available="1"][data-selectable="1"]');
 						if (!selectedNode) {
-							selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"]');
+							selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"][data-selectable="1"]');
 						}
 						var optionData = readOptionData(selectedNode);
 						if (optionData) {
@@ -425,14 +551,95 @@ $total = 0;
 				});
 			}
 
-			function getSetItemsData(setIndex) {
+			function getTypeTriggerProductId(typeNode) {
+				if (!typeNode) {
+					return 0;
+				}
+				var triggerProductId = parseInt(typeNode.getAttribute("data-trigger-product-id"), 10);
+				return triggerProductId && triggerProductId > 0 ? triggerProductId : 0;
+			}
+
+			function isTriggerSatisfied(setIndex, triggerProductId) {
+				if (!triggerProductId) {
+					return true;
+				}
 				var typeMap = selectedOptionsBySet[setIndex] || {};
-				var items = [];
+				var isSatisfied = false;
 				Object.keys(typeMap).forEach(function(typeIndex) {
-					if (typeMap[typeIndex]) {
-						items.push(typeMap[typeIndex]);
+					if (isSatisfied || !typeMap[typeIndex]) {
+						return;
+					}
+					var optionData = typeMap[typeIndex];
+					if (parseInt(optionData.productId, 10) === triggerProductId) {
+						isSatisfied = true;
 					}
 				});
+				return isSatisfied;
+			}
+
+			function isTypeVisible(setIndex, typeNode) {
+				var triggerProductId = getTypeTriggerProductId(typeNode);
+				return isTriggerSatisfied(setIndex, triggerProductId);
+			}
+
+			function getSetItemsData(setIndex) {
+				var typeMap = selectedOptionsBySet[setIndex] || {};
+				var template = getSetTemplate(setIndex);
+				var items = [];
+				if (!template) {
+					return items;
+				}
+
+				var selectedProductIds = getSelectedProductIdsForSet(setIndex);
+				var typeNodes = template.querySelectorAll(".yith-wfbt-set-type");
+
+				Array.prototype.forEach.call(typeNodes, function(typeNode) {
+					var typeIndex = typeNode.getAttribute("data-type-index");
+					if (null === typeIndex || !isTypeVisible(setIndex, typeNode)) {
+						return;
+					}
+
+					var conditionalMode = typeNode.getAttribute("data-conditional-mode") === "1";
+					if (conditionalMode) {
+						var conditionalOptionNodes = typeNode.querySelectorAll('.yith-wfbt-type-option[data-available="1"]');
+						Array.prototype.forEach.call(conditionalOptionNodes, function(optionNode) {
+							var optionData = readOptionData(optionNode);
+							var effectiveQty = getEffectiveOptionQty(optionData, selectedProductIds);
+							if (!optionData || effectiveQty < 1) {
+								return;
+							}
+							items.push({
+								productId: optionData.productId,
+								qty: effectiveQty,
+								price: optionData.price
+							});
+							if (selectedProductIds.indexOf(optionData.productId) === -1) {
+								selectedProductIds.push(optionData.productId);
+							}
+						});
+						return;
+					}
+
+					var selectedData = typeMap[typeIndex];
+					if (!selectedData) {
+						return;
+					}
+
+					var selectedQty = getEffectiveOptionQty(selectedData, selectedProductIds);
+					if (selectedQty < 1) {
+						return;
+					}
+
+					items.push({
+						productId: selectedData.productId,
+						qty: selectedQty,
+						price: selectedData.price
+					});
+					if (selectedProductIds.indexOf(selectedData.productId) === -1) {
+						selectedProductIds.push(selectedData.productId);
+					}
+				});
+
 				return items;
 			}
 
@@ -441,16 +648,46 @@ $total = 0;
 					return;
 				}
 				var typeMap = selectedOptionsBySet[setIndex] || {};
+				var runningSelectedProductIds = getSelectedProductIdsForSet(setIndex);
 				var typeNodes = panel.querySelectorAll(".yith-wfbt-set-type");
 				Array.prototype.forEach.call(typeNodes, function(typeNode) {
 					var typeIndex = typeNode.getAttribute("data-type-index");
+					if (null === typeIndex) {
+						return;
+					}
+
+					var typeVisible = isTypeVisible(setIndex, typeNode);
+					typeNode.classList.toggle("is-hidden-by-trigger", !typeVisible);
+					if (!typeVisible) {
+						return;
+					}
+
+					var conditionalMode = typeNode.getAttribute("data-conditional-mode") === "1";
+					if (conditionalMode) {
+						var conditionalOptionNodes = typeNode.querySelectorAll(".yith-wfbt-type-option");
+						Array.prototype.forEach.call(conditionalOptionNodes, function(optionNode) {
+							var optionData = readOptionData(optionNode);
+							var effectiveQty = getEffectiveOptionQty(optionData, runningSelectedProductIds);
+							updateConditionalOptionDisplay(optionNode, effectiveQty, optionData);
+							if (optionData && effectiveQty > 0 && runningSelectedProductIds.indexOf(optionData.productId) === -1) {
+								runningSelectedProductIds.push(optionData.productId);
+							}
+						});
+						return;
+					}
+
+					var regularOptionNodes = typeNode.querySelectorAll(".yith-wfbt-type-option");
+					Array.prototype.forEach.call(regularOptionNodes, function(optionNode) {
+						optionNode.classList.remove("is-hidden-by-condition");
+					});
+
 					var selectedData = typeMap[typeIndex];
 					var selectedNode = null;
 					if (selectedData && selectedData.productId) {
-						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-product-id="' + selectedData.productId + '"][data-available="1"]');
+						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-product-id="' + selectedData.productId + '"][data-available="1"][data-selectable="1"]');
 					}
 					if (!selectedNode) {
-						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"]');
+						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"][data-selectable="1"]');
 						var fallbackData = readOptionData(selectedNode);
 						if (fallbackData) {
 							if (!selectedOptionsBySet[setIndex]) {
@@ -461,6 +698,10 @@ $total = 0;
 					}
 					if (selectedNode) {
 						setOptionSelectedWithinType(typeNode, selectedNode);
+						var selectedProductId = parseInt(selectedNode.getAttribute("data-product-id"), 10);
+						if (selectedProductId && runningSelectedProductIds.indexOf(selectedProductId) === -1) {
+							runningSelectedProductIds.push(selectedProductId);
+						}
 					}
 				});
 			}
@@ -618,6 +859,9 @@ $total = 0;
 					if (!typeNode || !setIndexForOption) {
 						return;
 					}
+					if (optionNode.getAttribute("data-selectable") !== "1" || typeNode.getAttribute("data-conditional-mode") === "1") {
+						return;
+					}
 					var typeIndex = typeNode.getAttribute("data-type-index");
 					if (null === typeIndex) {
 						return;
@@ -631,6 +875,7 @@ $total = 0;
 						selectedOptionsBySet[setIndexForOption] = {};
 					}
 					selectedOptionsBySet[setIndexForOption][typeIndex] = optionData;
+					applyPanelSelectionState(setIndexForOption);
 					syncAll();
 					return;
 				}
@@ -664,6 +909,9 @@ $total = 0;
 				}
 				var optionNode = event.target.closest(".yith-wfbt-type-option");
 				if (!optionNode) {
+					return;
+				}
+				if (optionNode.getAttribute("data-selectable") !== "1") {
 					return;
 				}
 				event.preventDefault();
@@ -820,6 +1068,10 @@ $total = 0;
 		margin-bottom: 12px;
 	}
 
+	.yith-wfbt-set-type.is-hidden-by-trigger {
+		display: none;
+	}
+
 	.yith-wfbt-set-type:last-child {
 		margin-bottom: 0;
 	}
@@ -857,6 +1109,14 @@ $total = 0;
 	.yith-wfbt-type-option {
 		cursor: pointer;
 		transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+	}
+
+	.yith-wfbt-type-option.is-auto {
+		cursor: default;
+	}
+
+	.yith-wfbt-type-option.is-hidden-by-condition {
+		display: none;
 	}
 
 	.yith-wfbt-type-option.is-selected {

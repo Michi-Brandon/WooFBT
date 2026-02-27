@@ -206,6 +206,7 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 								'name'     => '',
 								'products' => $legacy_products,
 								'qty'      => $legacy_qty_map,
+								'trigger_product_id' => 0,
 							);
 						}
 					}
@@ -216,6 +217,13 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 					foreach ( $raw_types as $raw_type ) {
 						$type_name = isset( $raw_type['name'] ) ? $raw_type['name'] : '';
 						$type_qty  = isset( $raw_type['qty'] ) && is_array( $raw_type['qty'] ) ? $raw_type['qty'] : array();
+						$type_trigger_product = isset( $raw_type['trigger_product_id'] ) ? $raw_type['trigger_product_id'] : 0;
+						if ( is_array( $type_trigger_product ) ) {
+							$type_trigger_product = reset( $type_trigger_product );
+						}
+						$type_trigger_product_id = absint( $type_trigger_product );
+						$type_trigger_map = isset( $raw_type['trigger'] ) && is_array( $raw_type['trigger'] ) ? $raw_type['trigger'] : array();
+						$type_trigger_extra_map = isset( $raw_type['trigger_extra_qty'] ) && is_array( $raw_type['trigger_extra_qty'] ) ? $raw_type['trigger_extra_qty'] : array();
 
 						$type_products = isset( $raw_type['products'] ) ? $raw_type['products'] : array();
 						if ( is_string( $type_products ) ) {
@@ -242,6 +250,7 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 
 						$type_options      = array();
 						$default_option_id = 0;
+						$type_is_conditional = false;
 
 						foreach ( $type_products as $type_product_id ) {
 							$current = wc_get_product( $type_product_id );
@@ -250,7 +259,10 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 							}
 
 							$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
-							$qty = max( 1, $qty );
+							$qty = max( 0, $qty );
+							$option_trigger_product_id = isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : $type_trigger_product_id;
+							$option_trigger_extra_qty = isset( $type_trigger_extra_map[ $type_product_id ] ) ? absint( $type_trigger_extra_map[ $type_product_id ] ) : 0;
+							$option_trigger_extra_qty = max( 0, $option_trigger_extra_qty );
 
 							if ( ! $fallback_image ) {
 								$fallback_image = $current->get_image( $image_size );
@@ -265,8 +277,14 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 								'product_id' => $type_product_id,
 								'qty'        => $qty,
 								'available'  => $is_available,
+								'trigger_product_id' => $option_trigger_product_id,
+								'trigger_extra_qty' => $option_trigger_extra_qty,
 								'product'    => $current,
 							);
+
+							if ( $option_trigger_product_id || $option_trigger_extra_qty || $qty < 1 ) {
+								$type_is_conditional = true;
+							}
 						}
 
 						if ( empty( $type_options ) ) {
@@ -276,6 +294,8 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 						$prepared_types[] = array(
 							'name'              => $type_name,
 							'default_product_id' => $default_option_id,
+							'trigger_product_id' => $type_trigger_product_id,
+							'conditional_mode'   => $type_is_conditional,
 							'options'           => $type_options,
 						);
 					}
@@ -305,12 +325,16 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 									return array(
 										'name'     => $type['name'],
 										'default'  => $type['default_product_id'],
+										'trigger'  => isset( $type['trigger_product_id'] ) ? absint( $type['trigger_product_id'] ) : 0,
+										'conditional_mode' => ! empty( $type['conditional_mode'] ),
 										'products' => array_map(
 											function( $option ) {
 												return array(
 													'product_id' => $option['product_id'],
 													'qty'        => $option['qty'],
 													'available'  => $option['available'],
+													'trigger_product_id' => isset( $option['trigger_product_id'] ) ? absint( $option['trigger_product_id'] ) : 0,
+													'trigger_extra_qty' => isset( $option['trigger_extra_qty'] ) ? absint( $option['trigger_extra_qty'] ) : 0,
 												);
 											},
 											$type['options']
