@@ -105,7 +105,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 		 */
 		public function add_bought_together_tab( $tabs ) {
 			$tabs['yith-wfbt2'] = array(
-				'label'  => _x( 'Cross Selling Manual', 'tab in product data box', 'yith-woocommerce-frequently-bought-together' ),
+				'label'  => _x( 'Venta cruzada manual', 'tab in product data box', 'yith-woocommerce-frequently-bought-together' ),
 				'target' => 'yith_wfbt2_data_option',
 				'class'  => array( 'hide_if_grouped', 'hide_if_external', 'hide_if_bundle' ),
 			);
@@ -221,9 +221,19 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					foreach ( $type_products as $type_product_id ) {
 						$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
 						$type_qty_map[ $type_product_id ] = max( 0, $qty );
-						$trigger_product_id = isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : 0;
+
+						$raw_trigger_ids = isset( $type_trigger_map[ $type_product_id ] ) ? $type_trigger_map[ $type_product_id ] : array();
+						if ( ! is_array( $raw_trigger_ids ) ) {
+							$raw_trigger_ids = explode( ',', strval( $raw_trigger_ids ) );
+						}
+						$normalized_trigger_ids = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $raw_trigger_ids ) ) );
+						$normalized_trigger_ids = array_values( array_unique( $normalized_trigger_ids ) );
+						if ( empty( $normalized_trigger_ids ) && $type_trigger_product_id ) {
+							$normalized_trigger_ids[] = $type_trigger_product_id;
+						}
+
 						$trigger_extra_qty = isset( $type_trigger_extra_map[ $type_product_id ] ) ? absint( $type_trigger_extra_map[ $type_product_id ] ) : 0;
-						$normalized_trigger_map[ $type_product_id ] = $trigger_product_id;
+						$normalized_trigger_map[ $type_product_id ] = $normalized_trigger_ids;
 						$normalized_trigger_extra_map[ $type_product_id ] = max( 0, $trigger_extra_qty );
 					}
 
@@ -255,27 +265,27 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 			?>
 			<div class="yith-wfbt2-category-box" data-index="__INDEX__">
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___INDEX___name"><?php esc_html_e( 'Set name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label for="yith_wfbt2_categories___INDEX___name"><?php esc_html_e( 'Nombre del set', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<input type="text" id="yith_wfbt2_categories___INDEX___name" name="yith_wfbt2_categories[__INDEX__][name]" value="" style="width: 50%;"/>
 				</p>
 
 				<p class="form-field">
-					<label><?php esc_html_e( 'Set image', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label><?php esc_html_e( 'Imagen del set', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<input type="hidden" class="yith-wfbt2-set-image-id" id="yith_wfbt2_categories___INDEX___image_id" name="yith_wfbt2_categories[__INDEX__][image_id]" value=""/>
 					<span class="yith-wfbt2-set-image-preview"></span>
-					<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Select image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
-					<a href="#" class="button yith-wfbt2-remove-image" style="display:none;"><?php esc_html_e( 'Remove image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Seleccionar imagen', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-image" style="display:none;"><?php esc_html_e( 'Quitar imagen', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 
 				<p class="form-field">
-					<label><?php esc_html_e( 'Types', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label><?php esc_html_e( 'Tipos', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<div class="yith-wfbt2-set-types"></div>
-					<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Add Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Agregar tipo', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 				<input type="hidden" class="yith-wfbt2-types-next-index" value="0"/>
 
 				<p>
-					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Quitar set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 			</div>
 			<?php
@@ -285,12 +295,12 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 			?>
 			<div class="yith-wfbt2-type-box" data-set-index="__SET_INDEX__" data-type-index="__TYPE_INDEX__">
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___name"><?php esc_html_e( 'Type name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___name"><?php esc_html_e( 'Nombre del tipo', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<input type="text" id="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___name" name="yith_wfbt2_categories[__SET_INDEX__][types][__TYPE_INDEX__][name]" value="" style="width: 50%;"/>
 				</p>
 
 				<p class="form-field">
-					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___products"><?php esc_html_e( 'Type products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<label for="yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___products"><?php esc_html_e( 'Productos del tipo', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 					<?php
 					yit_add_select2_fields(
 						array(
@@ -298,7 +308,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							'style'             => 'width: 50%;',
 							'id'                => 'yith_wfbt2_categories___SET_INDEX___types___TYPE_INDEX___products',
 							'name'              => 'yith_wfbt2_categories[__SET_INDEX__][types][__TYPE_INDEX__][products]',
-							'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
+							'data-placeholder'  => __( 'Buscar un producto&hellip;', 'yith-woocommerce-frequently-bought-together' ),
 							'data-multiple'     => true,
 							'data-action'       => 'yith_wfbt2_ajax_search_product',
 							'data-selected'     => array(),
@@ -315,13 +325,13 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				<input type="hidden" class="yith-wfbt2-type-trigger-map-data" value="{}"/>
 				<input type="hidden" class="yith-wfbt2-type-trigger-extra-map-data" value="{}"/>
 				<div class="yith-wfbt2-type-qty-wrapper">
-					<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-					<p class="description"><?php esc_html_e( 'Set Trigger product to link this product with another type. If Trigger extra qty is 0, the product is shown only when trigger matches. If Trigger extra qty is greater than 0, that amount is added when trigger matches.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
+					<label><?php esc_html_e( 'Cantidad por producto', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Define uno o varios productos gatillo para relacionar este producto con otro tipo. Si Cantidad extra por gatillo es 0, el producto solo se muestra cuando se cumple el gatillo. Si es mayor que 0, esa cantidad se suma cuando se cumple el gatillo.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
 					<div class="yith-wfbt2-type-qty-list"></div>
 				</div>
 
 				<p>
-					<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Remove Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+					<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Quitar tipo', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 				</p>
 			</div>
 			<?php
@@ -343,7 +353,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							<span class="yith-wfbt2-mode-option">
 								<label>
 									<input type="radio" name="yith_wfbt2_mode" value="categorical" <?php checked( $mode, 'categorical' ); ?> />
-									<?php esc_html_e( 'Categorical', 'yith-woocommerce-frequently-bought-together' ); ?>
+									<?php esc_html_e( 'Categórico', 'yith-woocommerce-frequently-bought-together' ); ?>
 								</label>
 							</span>
 						</span>
@@ -353,7 +363,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 				<div class="yith-wfbt2-mode-set">
 					<div class="options_group">
 						<p class="form-field">
-							<label for="yith_wfbt2_ids"><?php esc_html_e( 'Select products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+							<label for="yith_wfbt2_ids"><?php esc_html_e( 'Seleccionar productos', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 							<?php
 							$product_ids = yit_get_prop( $product_object, $meta_key, true );
 							$product_ids = array_filter( array_map( 'absint', (array) $product_ids ) );
@@ -372,7 +382,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 									'style'             => 'width: 50%;',
 									'id'                => 'yith_wfbt2_ids',
 									'name'              => 'yith_wfbt2_ids',
-									'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
+									'data-placeholder'  => __( 'Buscar un producto&hellip;', 'yith-woocommerce-frequently-bought-together' ),
 									'data-multiple'     => true,
 									'data-action'       => 'yith_wfbt2_ajax_search_product',
 									'data-selected'     => $json_ids,
@@ -400,20 +410,20 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								?>
 								<div class="yith-wfbt2-category-box" data-index="<?php echo esc_attr( $category_index ); ?>">
 									<p class="form-field">
-										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name"><?php esc_html_e( 'Set name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name"><?php esc_html_e( 'Nombre del set', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 										<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_name" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][name]" value="<?php echo esc_attr( $category_name ); ?>" style="width: 50%;"/>
 									</p>
 
 									<p class="form-field">
-										<label><?php esc_html_e( 'Set image', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<label><?php esc_html_e( 'Imagen del set', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 										<input type="hidden" class="yith-wfbt2-set-image-id" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_image_id" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][image_id]" value="<?php echo esc_attr( $category_image ); ?>"/>
 										<span class="yith-wfbt2-set-image-preview"><?php if ( $category_image ) { echo wp_kses_post( wp_get_attachment_image( $category_image, 'thumbnail' ) ); } ?></span>
-										<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Select image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
-										<a href="#" class="button yith-wfbt2-remove-image" <?php echo $category_image ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove image', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-upload-image"><?php esc_html_e( 'Seleccionar imagen', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-remove-image" <?php echo $category_image ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Quitar imagen', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
 
 									<p class="form-field">
-										<label><?php esc_html_e( 'Types', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+										<label><?php esc_html_e( 'Tipos', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 										<div class="yith-wfbt2-set-types">
 											<?php foreach ( $category_types as $type_data ) : ?>
 												<?php
@@ -422,6 +432,21 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 												$type_qty_map  = isset( $type_data['qty'] ) && is_array( $type_data['qty'] ) ? $type_data['qty'] : array();
 												$type_trigger_map = isset( $type_data['trigger'] ) && is_array( $type_data['trigger'] ) ? $type_data['trigger'] : array();
 												$type_trigger_extra_map = isset( $type_data['trigger_extra_qty'] ) && is_array( $type_data['trigger_extra_qty'] ) ? $type_data['trigger_extra_qty'] : array();
+												$type_trigger_fallback = isset( $type_data['trigger_product_id'] ) ? absint( $type_data['trigger_product_id'] ) : 0;
+												$normalized_type_trigger_map = array();
+												foreach ( $type_products as $type_product_id ) {
+													$raw_trigger_ids = isset( $type_trigger_map[ $type_product_id ] ) ? $type_trigger_map[ $type_product_id ] : array();
+													if ( ! is_array( $raw_trigger_ids ) ) {
+														$raw_trigger_ids = explode( ',', strval( $raw_trigger_ids ) );
+													}
+													$trigger_ids = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $raw_trigger_ids ) ) );
+													$trigger_ids = array_values( array_unique( $trigger_ids ) );
+													if ( empty( $trigger_ids ) && $type_trigger_fallback ) {
+														$trigger_ids[] = $type_trigger_fallback;
+													}
+													$normalized_type_trigger_map[ $type_product_id ] = $trigger_ids;
+												}
+												$type_trigger_map = $normalized_type_trigger_map;
 
 												$type_json_ids = array();
 												foreach ( $type_products as $type_product_id ) {
@@ -433,11 +458,11 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 												?>
 												<div class="yith-wfbt2-type-box" data-set-index="<?php echo esc_attr( $category_index ); ?>" data-type-index="<?php echo esc_attr( $type_next_index ); ?>">
 													<p class="form-field">
-														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_name"><?php esc_html_e( 'Type name', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_name"><?php esc_html_e( 'Nombre del tipo', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 														<input type="text" id="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_name" name="yith_wfbt2_categories[<?php echo esc_attr( $category_index ); ?>][types][<?php echo esc_attr( $type_next_index ); ?>][name]" value="<?php echo esc_attr( $type_name ); ?>" style="width: 50%;"/>
 													</p>
 													<p class="form-field">
-														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_products"><?php esc_html_e( 'Type products', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<label for="yith_wfbt2_categories_<?php echo esc_attr( $category_index ); ?>_types_<?php echo esc_attr( $type_next_index ); ?>_products"><?php esc_html_e( 'Productos del tipo', 'yith-woocommerce-frequently-bought-together' ); ?></label>
 														<?php
 														yit_add_select2_fields(
 															array(
@@ -445,7 +470,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 																'style'             => 'width: 50%;',
 																'id'                => 'yith_wfbt2_categories_' . $category_index . '_types_' . $type_next_index . '_products',
 																'name'              => 'yith_wfbt2_categories[' . $category_index . '][types][' . $type_next_index . '][products]',
-																'data-placeholder'  => __( 'Search for a product&hellip;', 'yith-woocommerce-frequently-bought-together' ),
+																'data-placeholder'  => __( 'Buscar un producto&hellip;', 'yith-woocommerce-frequently-bought-together' ),
 																'data-multiple'     => true,
 																'data-action'       => 'yith_wfbt2_ajax_search_product',
 																'data-selected'     => $type_json_ids,
@@ -462,25 +487,25 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 													<input type="hidden" class="yith-wfbt2-type-trigger-map-data" value="<?php echo esc_attr( wp_json_encode( $type_trigger_map ) ); ?>"/>
 													<input type="hidden" class="yith-wfbt2-type-trigger-extra-map-data" value="<?php echo esc_attr( wp_json_encode( $type_trigger_extra_map ) ); ?>"/>
 													<div class="yith-wfbt2-type-qty-wrapper">
-														<label><?php esc_html_e( 'Quantity per product', 'yith-woocommerce-frequently-bought-together' ); ?></label>
-														<p class="description"><?php esc_html_e( 'Set Trigger product to link this product with another type. If Trigger extra qty is 0, the product is shown only when trigger matches. If Trigger extra qty is greater than 0, that amount is added when trigger matches.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
+														<label><?php esc_html_e( 'Cantidad por producto', 'yith-woocommerce-frequently-bought-together' ); ?></label>
+														<p class="description"><?php esc_html_e( 'Define uno o varios productos gatillo para relacionar este producto con otro tipo. Si Cantidad extra por gatillo es 0, el producto solo se muestra cuando se cumple el gatillo. Si es mayor que 0, esa cantidad se suma cuando se cumple el gatillo.', 'yith-woocommerce-frequently-bought-together' ); ?></p>
 														<div class="yith-wfbt2-type-qty-list"></div>
 													</div>
 
 													<p>
-														<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Remove Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+														<a href="#" class="button yith-wfbt2-remove-type"><?php esc_html_e( 'Quitar tipo', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 													</p>
 												</div>
 												<?php $type_next_index++; ?>
 											<?php endforeach; ?>
 										</div>
-										<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Add Type', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-add-type">+ <?php esc_html_e( 'Agregar tipo', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
 
 									<input type="hidden" class="yith-wfbt2-types-next-index" value="<?php echo esc_attr( $type_next_index ); ?>"/>
 
 									<p>
-										<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Remove Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+										<a href="#" class="button yith-wfbt2-remove-category"><?php esc_html_e( 'Quitar set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 									</p>
 								</div>
 								<?php
@@ -489,7 +514,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							?>
 						</div>
 						<p>
-							<a href="#" class="button yith-wfbt2-add-category">+ <?php esc_html_e( 'Add Set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
+							<a href="#" class="button yith-wfbt2-add-category">+ <?php esc_html_e( 'Agregar set', 'yith-woocommerce-frequently-bought-together' ); ?></a>
 						</p>
 						<input type="hidden" id="yith_wfbt2_categories_next_index" value="<?php echo esc_attr( $category_index ); ?>"/>
 					</div>
@@ -561,8 +586,18 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							var map = getStoredTriggerMap($typeBox);
 							$typeBox.find(".yith-wfbt2-type-trigger-input").each(function() {
 								var productId = String($(this).data("productId"));
-								var triggerProductId = parseInt($(this).val(), 10);
-								map[productId] = triggerProductId > 0 ? triggerProductId : 0;
+								var triggerProductIds = $(this).val();
+								if (!Array.isArray(triggerProductIds)) {
+									triggerProductIds = triggerProductIds ? [triggerProductIds] : [];
+								}
+								var normalized = [];
+								triggerProductIds.forEach(function(rawId) {
+									var parsedId = parseInt(rawId, 10);
+									if (parsedId > 0 && normalized.indexOf(parsedId) === -1) {
+										normalized.push(parsedId);
+									}
+								});
+								map[productId] = normalized;
 							});
 							return map;
 						}
@@ -602,13 +637,19 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							return choices;
 						}
 
-						function buildTriggerSelectHtml(setChoices, selectedTriggerId, setIndex, typeIndex, productId) {
-							var fieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][trigger][" + productId + "]";
+						function buildTriggerSelectHtml(setChoices, selectedTriggerIds, setIndex, typeIndex, productId) {
+							var fieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][trigger][" + productId + "][]";
+							if (!Array.isArray(selectedTriggerIds)) {
+								selectedTriggerIds = selectedTriggerIds ? [String(selectedTriggerIds)] : [];
+							} else {
+								selectedTriggerIds = selectedTriggerIds.map(function(value) {
+									return String(value);
+								});
+							}
 							var html = '' +
-								'<select class="yith-wfbt2-type-trigger-input" data-product-id="' + productId + '" name="' + fieldName + '">' +
-									'<option value="">-</option>';
+								'<select class="yith-wfbt2-type-trigger-input" data-product-id="' + productId + '" name="' + fieldName + '" multiple="multiple" size="6">';
 							Object.keys(setChoices).forEach(function(choiceId) {
-								var selected = String(choiceId) === String(selectedTriggerId) ? ' selected="selected"' : '';
+								var selected = selectedTriggerIds.indexOf(String(choiceId)) !== -1 ? ' selected="selected"' : '';
 								html += '<option value="' + choiceId + '"' + selected + '>' + escapeHtml(setChoices[choiceId]) + '</option>';
 							});
 							html += '</select>';
@@ -636,7 +677,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							var $list = $typeBox.find(".yith-wfbt2-type-qty-list");
 							$list.empty();
 							if (!selectedIds.length) {
-								$list.append('<p class="description yith-wfbt2-type-qty-empty"><?php echo esc_js( __( 'Select products to define quantities.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
+								$list.append('<p class="description yith-wfbt2-type-qty-empty"><?php echo esc_js( __( 'Selecciona productos para definir cantidades.', 'yith-woocommerce-frequently-bought-together' ) ); ?></p>');
 								$typeBox.find(".yith-wfbt2-type-qty-map-data").val("{}");
 								$typeBox.find(".yith-wfbt2-type-trigger-map-data").val("{}");
 								$typeBox.find(".yith-wfbt2-type-trigger-extra-map-data").val("{}");
@@ -654,10 +695,17 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 									qty = 0;
 								}
 
-								var triggerProductId = parseInt(triggerMap[productId], 10);
-								if (!triggerProductId || !setChoices[String(triggerProductId)]) {
-									triggerProductId = 0;
+								var triggerProductIds = triggerMap[productId];
+								if (!Array.isArray(triggerProductIds)) {
+									triggerProductIds = triggerProductIds ? [String(triggerProductIds)] : [];
 								}
+								var normalizedTriggerProductIds = [];
+								triggerProductIds.forEach(function(rawTriggerId) {
+									var parsedTriggerId = parseInt(rawTriggerId, 10);
+									if (parsedTriggerId > 0 && setChoices[String(parsedTriggerId)] && normalizedTriggerProductIds.indexOf(parsedTriggerId) === -1) {
+										normalizedTriggerProductIds.push(parsedTriggerId);
+									}
+								});
 
 								var triggerExtraQty = parseInt(triggerExtraMap[productId], 10);
 								if (isNaN(triggerExtraQty) || triggerExtraQty < 0) {
@@ -665,7 +713,7 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								}
 
 								normalizedQtyMap[productId] = qty;
-								normalizedTriggerMap[productId] = triggerProductId;
+								normalizedTriggerMap[productId] = normalizedTriggerProductIds;
 								normalizedTriggerExtraMap[productId] = triggerExtraQty;
 
 								var qtyFieldName = "yith_wfbt2_categories[" + setIndex + "][types][" + typeIndex + "][qty][" + productId + "]";
@@ -675,15 +723,15 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 									'<div class="yith-wfbt2-type-qty-row">' +
 										'<span class="yith-wfbt2-type-qty-name">' + escapeHtml(label) + '</span>' +
 										'<span class="yith-wfbt2-type-qty-field">' +
-											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Qty', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Cantidad', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
 											'<input type="number" min="0" class="yith-wfbt2-type-qty-input" data-product-id="' + productId + '" name="' + qtyFieldName + '" value="' + qty + '" />' +
 										'</span>' +
 										'<span class="yith-wfbt2-type-qty-field yith-wfbt2-type-trigger-field">' +
-											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Trigger product', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
-											buildTriggerSelectHtml(setChoices, triggerProductId, setIndex, typeIndex, productId) +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Productos gatillo', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											buildTriggerSelectHtml(setChoices, normalizedTriggerProductIds, setIndex, typeIndex, productId) +
 										'</span>' +
 										'<span class="yith-wfbt2-type-qty-field">' +
-											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Trigger extra qty', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
+											'<span class="yith-wfbt2-type-qty-field-label"><?php echo esc_js( __( 'Cantidad extra por gatillo', 'yith-woocommerce-frequently-bought-together' ) ); ?></span>' +
 											'<input type="number" min="0" class="yith-wfbt2-type-trigger-extra-input" data-product-id="' + productId + '" name="' + triggerExtraFieldName + '" value="' + triggerExtraQty + '" />' +
 										'</span>' +
 									'</div>';
@@ -850,8 +898,8 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 							}
 							var $box = $(this).closest(".yith-wfbt2-category-box");
 							var frame = wp.media({
-								title: '<?php echo esc_js( __( 'Select set image', 'yith-woocommerce-frequently-bought-together' ) ); ?>',
-								button: { text: '<?php echo esc_js( __( 'Use this image', 'yith-woocommerce-frequently-bought-together' ) ); ?>' },
+								title: '<?php echo esc_js( __( 'Seleccionar imagen del set', 'yith-woocommerce-frequently-bought-together' ) ); ?>',
+								button: { text: '<?php echo esc_js( __( 'Usar esta imagen', 'yith-woocommerce-frequently-bought-together' ) ); ?>' },
 								multiple: false
 							});
 							frame.on("select", function() {
@@ -892,7 +940,8 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 					.yith-wfbt2-type-qty-field { display: inline-flex; flex-direction: column; gap: 4px; min-width: 120px; }
 					.yith-wfbt2-type-qty-field-label { font-size: 12px; color: #666; }
 					.yith-wfbt2-type-qty-input, .yith-wfbt2-type-trigger-extra-input { width: 110px; }
-					.yith-wfbt2-type-trigger-input { min-width: 210px; max-width: 280px; }
+					.yith-wfbt2-type-trigger-input { width: 100%; min-height: 110px; }
+					.yith-wfbt2-type-trigger-field { min-width: 260px; max-width: 340px; }
 				</style>
 			</div>
 			<?php
@@ -1084,10 +1133,19 @@ if ( ! class_exists( 'YITH_WFBT2_Admin' ) ) {
 								$qty = max( 0, $qty );
 								$type_qty_map[ $type_product_id ] = $qty;
 
-								$trigger_product_id = isset( $type_trigger[ $type_product_id ] ) ? absint( $type_trigger[ $type_product_id ] ) : 0;
+								$raw_trigger_ids = isset( $type_trigger[ $type_product_id ] ) ? $type_trigger[ $type_product_id ] : array();
+								if ( ! is_array( $raw_trigger_ids ) ) {
+									$raw_trigger_ids = explode( ',', strval( $raw_trigger_ids ) );
+								}
+								$trigger_ids = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $raw_trigger_ids ) ) );
+								$trigger_ids = array_values( array_unique( $trigger_ids ) );
+								if ( empty( $trigger_ids ) && $type_trigger_product_id ) {
+									$trigger_ids[] = $type_trigger_product_id;
+								}
+
 								$trigger_extra_qty_for_product = isset( $type_trigger_extra_qty[ $type_product_id ] ) ? absint( $type_trigger_extra_qty[ $type_product_id ] ) : 0;
 								$trigger_extra_qty_for_product = max( 0, $trigger_extra_qty_for_product );
-								$type_trigger_map[ $type_product_id ] = $trigger_product_id;
+								$type_trigger_map[ $type_product_id ] = $trigger_ids;
 								$type_trigger_extra_map[ $type_product_id ] = $trigger_extra_qty_for_product;
 
 								if ( ! in_array( $type_product_id, $flat_product_ids, true ) ) {

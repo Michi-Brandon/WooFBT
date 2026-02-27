@@ -260,7 +260,16 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 
 							$qty = isset( $type_qty[ $type_product_id ] ) ? absint( $type_qty[ $type_product_id ] ) : 1;
 							$qty = max( 0, $qty );
-							$option_trigger_product_id = isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : $type_trigger_product_id;
+							$raw_option_trigger_ids = isset( $type_trigger_map[ $type_product_id ] ) ? $type_trigger_map[ $type_product_id ] : array();
+							if ( ! is_array( $raw_option_trigger_ids ) ) {
+								$raw_option_trigger_ids = explode( ',', strval( $raw_option_trigger_ids ) );
+							}
+							$option_trigger_product_ids = array_filter( array_map( 'absint', array_map( 'sanitize_text_field', (array) $raw_option_trigger_ids ) ) );
+							$option_trigger_product_ids = array_values( array_unique( $option_trigger_product_ids ) );
+							if ( empty( $option_trigger_product_ids ) && $type_trigger_product_id ) {
+								$option_trigger_product_ids[] = $type_trigger_product_id;
+							}
+							$option_trigger_product_id = ! empty( $option_trigger_product_ids ) ? absint( $option_trigger_product_ids[0] ) : 0;
 							$option_trigger_extra_qty = isset( $type_trigger_extra_map[ $type_product_id ] ) ? absint( $type_trigger_extra_map[ $type_product_id ] ) : 0;
 							$option_trigger_extra_qty = max( 0, $option_trigger_extra_qty );
 
@@ -278,11 +287,12 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 								'qty'        => $qty,
 								'available'  => $is_available,
 								'trigger_product_id' => $option_trigger_product_id,
+								'trigger_product_ids' => $option_trigger_product_ids,
 								'trigger_extra_qty' => $option_trigger_extra_qty,
 								'product'    => $current,
 							);
 
-							if ( $option_trigger_product_id || $option_trigger_extra_qty || $qty < 1 ) {
+							if ( ! empty( $option_trigger_product_ids ) || $option_trigger_extra_qty || $qty < 1 ) {
 								$type_is_conditional = true;
 							}
 						}
@@ -334,6 +344,7 @@ if ( ! class_exists( 'YITH_WFBT2_Frontend' ) ) {
 													'qty'        => $option['qty'],
 													'available'  => $option['available'],
 													'trigger_product_id' => isset( $option['trigger_product_id'] ) ? absint( $option['trigger_product_id'] ) : 0,
+													'trigger_product_ids' => isset( $option['trigger_product_ids'] ) ? array_values( array_filter( array_map( 'absint', (array) $option['trigger_product_ids'] ) ) ) : array(),
 													'trigger_extra_qty' => isset( $option['trigger_extra_qty'] ) ? absint( $option['trigger_extra_qty'] ) : 0,
 												);
 											},

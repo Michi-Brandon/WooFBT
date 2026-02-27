@@ -79,10 +79,21 @@ foreach ( $categories as $category ) {
 			}
 			$type_products = array_filter( array_map( 'absint', (array) $type_products ) );
 			foreach ( $type_products as $type_product_id ) {
+				$raw_trigger_ids = isset( $type_trigger_map[ $type_product_id ] ) ? $type_trigger_map[ $type_product_id ] : array();
+				if ( ! is_array( $raw_trigger_ids ) ) {
+					$raw_trigger_ids = explode( ',', strval( $raw_trigger_ids ) );
+				}
+				$normalized_trigger_ids = array_filter( array_map( 'absint', (array) $raw_trigger_ids ) );
+				$normalized_trigger_ids = array_values( array_unique( $normalized_trigger_ids ) );
+				if ( empty( $normalized_trigger_ids ) && $type_trigger_product ) {
+					$normalized_trigger_ids[] = $type_trigger_product;
+				}
+
 				$type_options_raw[] = array(
 					'product_id' => $type_product_id,
 					'qty'        => isset( $type_qty_map[ $type_product_id ] ) ? max( 0, absint( $type_qty_map[ $type_product_id ] ) ) : 1,
-					'trigger_product_id' => isset( $type_trigger_map[ $type_product_id ] ) ? absint( $type_trigger_map[ $type_product_id ] ) : 0,
+					'trigger_product_id' => ! empty( $normalized_trigger_ids ) ? absint( $normalized_trigger_ids[0] ) : 0,
+					'trigger_product_ids' => $normalized_trigger_ids,
 					'trigger_extra_qty'  => isset( $type_trigger_extra_map[ $type_product_id ] ) ? max( 0, absint( $type_trigger_extra_map[ $type_product_id ] ) ) : 0,
 				);
 			}
@@ -94,6 +105,7 @@ foreach ( $categories as $category ) {
 			$option_qty     = 1;
 			$option_avail   = false;
 			$option_trigger_product = 0;
+			$option_trigger_products = array();
 			$option_trigger_extra   = 0;
 
 			if ( is_array( $type_option ) && isset( $type_option['product'] ) && is_object( $type_option['product'] ) ) {
@@ -112,7 +124,17 @@ foreach ( $categories as $category ) {
 
 			$option_qty = isset( $type_option['qty'] ) ? max( 0, absint( $type_option['qty'] ) ) : 1;
 			$option_avail = isset( $type_option['available'] ) ? (bool) $type_option['available'] : ( $option_product->is_purchasable() && $option_product->is_in_stock() );
-			$option_trigger_product = isset( $type_option['trigger_product_id'] ) ? absint( $type_option['trigger_product_id'] ) : 0;
+			if ( isset( $type_option['trigger_product_ids'] ) ) {
+				$raw_option_trigger_products = is_array( $type_option['trigger_product_ids'] ) ? $type_option['trigger_product_ids'] : explode( ',', strval( $type_option['trigger_product_ids'] ) );
+				$option_trigger_products = array_values( array_unique( array_filter( array_map( 'absint', (array) $raw_option_trigger_products ) ) ) );
+			}
+			if ( empty( $option_trigger_products ) ) {
+				$legacy_trigger_product = isset( $type_option['trigger_product_id'] ) ? absint( $type_option['trigger_product_id'] ) : 0;
+				if ( $legacy_trigger_product ) {
+					$option_trigger_products[] = $legacy_trigger_product;
+				}
+			}
+			$option_trigger_product = ! empty( $option_trigger_products ) ? absint( $option_trigger_products[0] ) : 0;
 			$option_trigger_extra = isset( $type_option['trigger_extra_qty'] ) ? max( 0, absint( $type_option['trigger_extra_qty'] ) ) : 0;
 
 			$option_stock_max = '';
@@ -142,10 +164,11 @@ foreach ( $categories as $category ) {
 				'stock_max'  => $option_stock_max,
 				'available'  => $option_avail,
 				'trigger_product_id' => $option_trigger_product,
+				'trigger_product_ids' => $option_trigger_products,
 				'trigger_extra_qty'  => $option_trigger_extra,
 			);
 
-			if ( $option_trigger_product || $option_trigger_extra || $option_qty < 1 ) {
+			if ( ! empty( $option_trigger_products ) || $option_trigger_extra || $option_qty < 1 ) {
 				$type_conditional_mode = true;
 			}
 		}
@@ -298,24 +321,23 @@ $total = 0;
 									if ( $option_selected ) {
 										$option_classes .= ' is-selected';
 									}
-									if ( $type_conditional_mode ) {
-										$option_classes .= ' is-auto';
-									}
 									if ( ! $option_available ) {
 										$option_classes .= ' is-out-of-stock';
 									}
+									$option_trigger_product_ids = isset( $prepared_option['trigger_product_ids'] ) && is_array( $prepared_option['trigger_product_ids'] ) ? array_values( array_filter( array_map( 'absint', $prepared_option['trigger_product_ids'] ) ) ) : array();
 									?>
 									<div
 										class="<?php echo esc_attr( $option_classes ); ?>"
 										role="button"
-										tabindex="<?php echo esc_attr( ( $option_available && ! $type_conditional_mode ) ? '0' : '-1' ); ?>"
-										aria-disabled="<?php echo esc_attr( ( $option_available && ! $type_conditional_mode ) ? 'false' : 'true' ); ?>"
+										tabindex="<?php echo esc_attr( $option_available ? '0' : '-1' ); ?>"
+										aria-disabled="<?php echo esc_attr( $option_available ? 'false' : 'true' ); ?>"
 										data-available="<?php echo esc_attr( $option_available ? '1' : '0' ); ?>"
-										data-selectable="<?php echo esc_attr( $type_conditional_mode ? '0' : '1' ); ?>"
+										data-selectable="<?php echo esc_attr( $option_available ? '1' : '0' ); ?>"
 										data-product-id="<?php echo esc_attr( $prepared_option['id'] ); ?>"
 										data-price="<?php echo esc_attr( $prepared_option['price'] ); ?>"
 										data-qty="<?php echo esc_attr( $prepared_option['qty'] ); ?>"
 										data-trigger-product-id="<?php echo esc_attr( isset( $prepared_option['trigger_product_id'] ) ? absint( $prepared_option['trigger_product_id'] ) : 0 ); ?>"
+										data-trigger-product-ids="<?php echo esc_attr( wp_json_encode( $option_trigger_product_ids ) ); ?>"
 										data-trigger-extra-qty="<?php echo esc_attr( isset( $prepared_option['trigger_extra_qty'] ) ? absint( $prepared_option['trigger_extra_qty'] ) : 0 ); ?>"
 										<?php echo $prepared_option['stock_max'] ? 'data-max="' . esc_attr( $prepared_option['stock_max'] ) . '"' : ''; ?>
 									>
@@ -387,7 +409,7 @@ $total = 0;
 			var selectedOptionsBySet = {};
 
 			function readOptionData(optionNode) {
-				if (!optionNode || optionNode.getAttribute("data-available") !== "1") {
+				if (!optionNode) {
 					return null;
 				}
 				var productId = parseInt(optionNode.getAttribute("data-product-id"), 10);
@@ -395,8 +417,11 @@ $total = 0;
 				var max = parseInt(optionNode.getAttribute("data-max"), 10);
 				var price = parseFloat(optionNode.getAttribute("data-price") || 0);
 				var triggerProductId = parseInt(optionNode.getAttribute("data-trigger-product-id"), 10);
+				var triggerProductIdsRaw = optionNode.getAttribute("data-trigger-product-ids") || "[]";
 				var triggerExtraQty = parseInt(optionNode.getAttribute("data-trigger-extra-qty"), 10);
 				var selectable = optionNode.getAttribute("data-selectable") === "1";
+				var available = optionNode.getAttribute("data-available") === "1";
+				var triggerProductIds = [];
 
 				if (!productId) {
 					return null;
@@ -413,13 +438,31 @@ $total = 0;
 				if (isNaN(triggerExtraQty) || triggerExtraQty < 0) {
 					triggerExtraQty = 0;
 				}
+				try {
+					var parsedTriggerProductIds = JSON.parse(triggerProductIdsRaw);
+					if (Array.isArray(parsedTriggerProductIds)) {
+						parsedTriggerProductIds.forEach(function(rawId) {
+							var parsedId = parseInt(rawId, 10);
+							if (parsedId > 0 && triggerProductIds.indexOf(parsedId) === -1) {
+								triggerProductIds.push(parsedId);
+							}
+						});
+					}
+				} catch (error) {
+					triggerProductIds = [];
+				}
+				if (!triggerProductIds.length && triggerProductId > 0) {
+					triggerProductIds.push(triggerProductId);
+				}
 
 				return {
 					productId: productId,
 					qty: qty,
 					max: max,
 					price: price,
+					available: available,
 					triggerProductId: triggerProductId,
+					triggerProductIds: triggerProductIds,
 					triggerExtraQty: triggerExtraQty,
 					selectable: selectable
 				};
@@ -447,16 +490,20 @@ $total = 0;
 				}
 
 				var qty = optionData.qty;
-				var triggerProductId = optionData.triggerProductId || 0;
+				var triggerProductIds = Array.isArray(optionData.triggerProductIds) ? optionData.triggerProductIds : [];
 				var triggerExtraQty = optionData.triggerExtraQty || 0;
-				var triggerMatched = !triggerProductId || selectedProductIds.indexOf(triggerProductId) !== -1;
+				var triggerMatched = !triggerProductIds.length;
 
-				if (triggerProductId) {
-					if (triggerExtraQty > 0) {
-						qty = triggerMatched ? qty + triggerExtraQty : qty;
-					} else {
-						qty = triggerMatched ? qty : 0;
-					}
+				if (!triggerMatched) {
+					triggerMatched = triggerProductIds.some(function(triggerId) {
+						return selectedProductIds.indexOf(triggerId) !== -1;
+					});
+				}
+
+				if (triggerProductIds.length && !triggerMatched) {
+					qty = 0;
+				} else if (triggerMatched && triggerExtraQty > 0) {
+					qty += triggerExtraQty;
 				}
 
 				if (optionData.max && optionData.max > 0 && qty > optionData.max) {
@@ -528,23 +575,54 @@ $total = 0;
 						return;
 					}
 					var typeMap = {};
+					var runningSelectedProductIds = [];
 					var typeNodes = template.querySelectorAll(".yith-wfbt-set-type");
 					Array.prototype.forEach.call(typeNodes, function(typeNode) {
 						var typeIndex = typeNode.getAttribute("data-type-index");
 						if (null === typeIndex) {
 							return;
 						}
-						if (typeNode.getAttribute("data-conditional-mode") === "1") {
+
+						var optionNodes = typeNode.querySelectorAll('.yith-wfbt-type-option[data-available="1"][data-selectable="1"]');
+						var fallbackNode = null;
+						var selectedNode = null;
+
+						Array.prototype.forEach.call(optionNodes, function(optionNode) {
+							var optionData = readOptionData(optionNode);
+							if (!optionData) {
+								return;
+							}
+							var effectiveQty = getEffectiveOptionQty(optionData, runningSelectedProductIds);
+							if (effectiveQty < 1) {
+								return;
+							}
+							if (!fallbackNode) {
+								fallbackNode = optionNode;
+							}
+							if (optionNode.classList.contains("is-selected")) {
+								selectedNode = optionNode;
+							}
+						});
+
+						if (!selectedNode) {
+							selectedNode = fallbackNode;
+						}
+						if (!selectedNode) {
 							return;
 						}
 
-						var selectedNode = typeNode.querySelector('.yith-wfbt-type-option.is-selected[data-available="1"][data-selectable="1"]');
-						if (!selectedNode) {
-							selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"][data-selectable="1"]');
+						var selectedData = readOptionData(selectedNode);
+						if (!selectedData) {
+							return;
 						}
-						var optionData = readOptionData(selectedNode);
-						if (optionData) {
-							typeMap[typeIndex] = optionData;
+						var selectedQty = getEffectiveOptionQty(selectedData, runningSelectedProductIds);
+						if (selectedQty < 1) {
+							return;
+						}
+
+						typeMap[typeIndex] = selectedData;
+						if (runningSelectedProductIds.indexOf(selectedData.productId) === -1) {
+							runningSelectedProductIds.push(selectedData.productId);
 						}
 					});
 					selectedOptionsBySet[setIndex] = typeMap;
@@ -578,8 +656,7 @@ $total = 0;
 			}
 
 			function isTypeVisible(setIndex, typeNode) {
-				var triggerProductId = getTypeTriggerProductId(typeNode);
-				return isTriggerSatisfied(setIndex, triggerProductId);
+				return true;
 			}
 
 			function getSetItemsData(setIndex) {
@@ -590,33 +667,12 @@ $total = 0;
 					return items;
 				}
 
-				var selectedProductIds = getSelectedProductIdsForSet(setIndex);
+				var selectedProductIds = [];
 				var typeNodes = template.querySelectorAll(".yith-wfbt-set-type");
 
 				Array.prototype.forEach.call(typeNodes, function(typeNode) {
 					var typeIndex = typeNode.getAttribute("data-type-index");
 					if (null === typeIndex || !isTypeVisible(setIndex, typeNode)) {
-						return;
-					}
-
-					var conditionalMode = typeNode.getAttribute("data-conditional-mode") === "1";
-					if (conditionalMode) {
-						var conditionalOptionNodes = typeNode.querySelectorAll('.yith-wfbt-type-option[data-available="1"]');
-						Array.prototype.forEach.call(conditionalOptionNodes, function(optionNode) {
-							var optionData = readOptionData(optionNode);
-							var effectiveQty = getEffectiveOptionQty(optionData, selectedProductIds);
-							if (!optionData || effectiveQty < 1) {
-								return;
-							}
-							items.push({
-								productId: optionData.productId,
-								qty: effectiveQty,
-								price: optionData.price
-							});
-							if (selectedProductIds.indexOf(optionData.productId) === -1) {
-								selectedProductIds.push(optionData.productId);
-							}
-						});
 						return;
 					}
 
@@ -648,7 +704,7 @@ $total = 0;
 					return;
 				}
 				var typeMap = selectedOptionsBySet[setIndex] || {};
-				var runningSelectedProductIds = getSelectedProductIdsForSet(setIndex);
+				var runningSelectedProductIds = [];
 				var typeNodes = panel.querySelectorAll(".yith-wfbt-set-type");
 				Array.prototype.forEach.call(typeNodes, function(typeNode) {
 					var typeIndex = typeNode.getAttribute("data-type-index");
@@ -659,51 +715,62 @@ $total = 0;
 					var typeVisible = isTypeVisible(setIndex, typeNode);
 					typeNode.classList.toggle("is-hidden-by-trigger", !typeVisible);
 					if (!typeVisible) {
+						if (typeMap[typeIndex]) {
+							delete typeMap[typeIndex];
+						}
 						return;
 					}
 
-					var conditionalMode = typeNode.getAttribute("data-conditional-mode") === "1";
-					if (conditionalMode) {
-						var conditionalOptionNodes = typeNode.querySelectorAll(".yith-wfbt-type-option");
-						Array.prototype.forEach.call(conditionalOptionNodes, function(optionNode) {
-							var optionData = readOptionData(optionNode);
-							var effectiveQty = getEffectiveOptionQty(optionData, runningSelectedProductIds);
-							updateConditionalOptionDisplay(optionNode, effectiveQty, optionData);
-							if (optionData && effectiveQty > 0 && runningSelectedProductIds.indexOf(optionData.productId) === -1) {
-								runningSelectedProductIds.push(optionData.productId);
-							}
+					var visibleSelectableOptions = [];
+					var optionNodes = typeNode.querySelectorAll(".yith-wfbt-type-option");
+					Array.prototype.forEach.call(optionNodes, function(optionNode) {
+						var optionData = readOptionData(optionNode);
+						var effectiveQty = getEffectiveOptionQty(optionData, runningSelectedProductIds);
+						updateConditionalOptionDisplay(optionNode, effectiveQty, optionData);
+						if (!optionData || !optionData.available || !optionData.selectable || effectiveQty < 1) {
+							optionNode.classList.remove("is-selected");
+							return;
+						}
+						visibleSelectableOptions.push({
+							node: optionNode,
+							data: optionData
 						});
-						return;
-					}
-
-					var regularOptionNodes = typeNode.querySelectorAll(".yith-wfbt-type-option");
-					Array.prototype.forEach.call(regularOptionNodes, function(optionNode) {
-						optionNode.classList.remove("is-hidden-by-condition");
 					});
 
 					var selectedData = typeMap[typeIndex];
 					var selectedNode = null;
 					if (selectedData && selectedData.productId) {
-						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-product-id="' + selectedData.productId + '"][data-available="1"][data-selectable="1"]');
-					}
-					if (!selectedNode) {
-						selectedNode = typeNode.querySelector('.yith-wfbt-type-option[data-available="1"][data-selectable="1"]');
-						var fallbackData = readOptionData(selectedNode);
-						if (fallbackData) {
-							if (!selectedOptionsBySet[setIndex]) {
-								selectedOptionsBySet[setIndex] = {};
+						Array.prototype.some.call(visibleSelectableOptions, function(optionEntry) {
+							if (parseInt(optionEntry.data.productId, 10) === parseInt(selectedData.productId, 10)) {
+								selectedNode = optionEntry.node;
+								selectedData = optionEntry.data;
+								return true;
 							}
-							selectedOptionsBySet[setIndex][typeIndex] = fallbackData;
-						}
+							return false;
+						});
 					}
+
+					if (!selectedNode && visibleSelectableOptions.length) {
+						selectedNode = visibleSelectableOptions[0].node;
+						selectedData = visibleSelectableOptions[0].data;
+					}
+
 					if (selectedNode) {
 						setOptionSelectedWithinType(typeNode, selectedNode);
-						var selectedProductId = parseInt(selectedNode.getAttribute("data-product-id"), 10);
-						if (selectedProductId && runningSelectedProductIds.indexOf(selectedProductId) === -1) {
-							runningSelectedProductIds.push(selectedProductId);
+						typeMap[typeIndex] = selectedData;
+						if (selectedData.productId && runningSelectedProductIds.indexOf(selectedData.productId) === -1) {
+							runningSelectedProductIds.push(selectedData.productId);
+						}
+					} else {
+						Array.prototype.forEach.call(optionNodes, function(optionNode) {
+							optionNode.classList.remove("is-selected");
+						});
+						if (typeMap[typeIndex]) {
+							delete typeMap[typeIndex];
 						}
 					}
 				});
+				selectedOptionsBySet[setIndex] = typeMap;
 			}
 
 			function closeSetPanel() {
@@ -859,7 +926,7 @@ $total = 0;
 					if (!typeNode || !setIndexForOption) {
 						return;
 					}
-					if (optionNode.getAttribute("data-selectable") !== "1" || typeNode.getAttribute("data-conditional-mode") === "1") {
+					if (optionNode.getAttribute("data-selectable") !== "1" || optionNode.classList.contains("is-hidden-by-condition")) {
 						return;
 					}
 					var typeIndex = typeNode.getAttribute("data-type-index");
@@ -911,7 +978,7 @@ $total = 0;
 				if (!optionNode) {
 					return;
 				}
-				if (optionNode.getAttribute("data-selectable") !== "1") {
+				if (optionNode.getAttribute("data-selectable") !== "1" || optionNode.classList.contains("is-hidden-by-condition")) {
 					return;
 				}
 				event.preventDefault();
@@ -1109,10 +1176,6 @@ $total = 0;
 	.yith-wfbt-type-option {
 		cursor: pointer;
 		transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-	}
-
-	.yith-wfbt-type-option.is-auto {
-		cursor: default;
 	}
 
 	.yith-wfbt-type-option.is-hidden-by-condition {
